@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axiosInstance from "../api/axiosInstance"; // Import your configured axios instance
+import axiosInstance from "../api/axiosInstance";
 
 const ProfileBoard = () => {
   const [form, setForm] = useState({
@@ -8,17 +8,14 @@ const ProfileBoard = () => {
     password: '',
   });
 
-  const [isSignUp, setIsSignUp] = useState(true); // Toggle between sign-up and sign-in
-  const [message, setMessage] = useState(''); // For displaying success/error messages
-  const [showPopup, setShowPopup] = useState(false); // State for showing the success pop-up
+  const [isSignUp, setIsSignUp] = useState(true);
+  const [message, setMessage] = useState('');
+  const [showPopup, setShowPopup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setForm({
-      ...form,
-      [name]: value
-    });
+    setForm({ ...form, [name]: value });
   };
 
   const handleSubmit = async (e) => {
@@ -26,102 +23,120 @@ const ProfileBoard = () => {
 
     try {
       if (isSignUp) {
-        // Sign-up logic
         const response = await axiosInstance.post('/auth/signup', form);
         setMessage(response.data.message);
       } else {
-        // Sign-in logic
         const response = await axiosInstance.post('/auth/signin', {
           email: form.email,
-          password: form.password
+          password: form.password,
         });
         setMessage(response.data.message);
-        setShowPopup(true); // Show success pop-up on successful sign-in
+        setShowPopup(true);
 
-        // Hide the pop-up after 3 seconds
         setTimeout(() => {
           setShowPopup(false);
         }, 3000);
       }
     } catch (error) {
-      if (error.response && error.response.data && error.response.data.message) {
-        setMessage(error.response.data.message); // Display the specific error message
-      } else {
-        setMessage('Authentication failed. Please try again.'); // Generic error message
-      }
+      const errorMessage = error.response?.data?.message || 'Authentication failed. Please try again.';
+      setMessage(errorMessage);
     }
   };
 
   return (
-    <div className="p-10">
-      <h2 className="text-xl font-bold mb-4">{isSignUp ? 'Sign Up' : 'Sign In'}</h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {isSignUp && (
+    <div className="p-6 sm:p-10 min-h-screen bg-gray-100 flex flex-col justify-center items-center">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full sm:max-w-md">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          {isSignUp ? 'Create an Account' : 'Welcome Back!'}
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <div>
+              <label className="block text-sm font-medium text-gray-600">Username</label>
+              <input
+                type="text"
+                name="username"
+                value={form.username}
+                onChange={handleInputChange}
+                className="w-full p-3 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+          )}
+
           <div>
-            <label>Username</label>
+            <label className="block text-sm font-medium text-gray-600">Email</label>
             <input
-              type="text"
-              name="username"
-              value={form.username}
+              type="email"
+              name="email"
+              value={form.email}
               onChange={handleInputChange}
-              className="border p-2 w-full"
+              className="w-full p-3 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
               required
             />
           </div>
-        )}
-        
-        <div>
-          <label>Email</label>
-          <input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleInputChange}
-            className="border p-2 w-full"
-            required
-          />
-        </div>
 
-        <div className="relative">
-          <label className="block mb-1">Password</label>
-          <input
-            type={showPassword ? "text" : "password"} // Toggle password visibility
-            name="password"
-            value={form.password}
-            onChange={handleInputChange}
-            className="border p-2 w-full pr-16" // Add padding on the right for the button
-            required
-          />
-          <button 
-            type="button" 
-            onClick={() => setShowPassword(!showPassword)} // Toggle showPassword state
-            className="absolute top-3 right-0 flex items-center h-full pr-3" // Adjust height for better vertical alignment
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-600">Password</label>
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={form.password}
+              onChange={handleInputChange}
+              className="w-full p-3 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute top-8 right-3 text-sm font-medium text-blue-500"
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-blue-500 text-white py-3 rounded-lg shadow-lg hover:bg-blue-600 transition"
           >
-            {showPassword ? 'Hide' : 'Show'}
+            {isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
-        </div>
+        </form>
 
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2">
-          {isSignUp ? 'Sign Up' : 'Sign In'}
-        </button>
-      </form>
+        <p className="mt-4 text-center text-sm text-gray-600">
+          {isSignUp ? (
+            <>
+              Already have an account?{' '}
+              <button
+                onClick={() => setIsSignUp(false)}
+                className="text-blue-500 hover:underline"
+              >
+                Sign In
+              </button>
+            </>
+          ) : (
+            <>
+              Don’t have an account?{' '}
+              <button
+                onClick={() => setIsSignUp(true)}
+                className="text-blue-500 hover:underline"
+              >
+                Sign Up
+              </button>
+            </>
+          )}
+        </p>
 
-      <p className="mt-4 text-sm text-red-500">{message}</p>
+        {message && <p className="mt-4 text-center text-sm text-red-500">{message}</p>}
+      </div>
 
-      <button
-        onClick={() => setIsSignUp(!isSignUp)}
-        className="mt-4 text-blue-500"
-      >
-        {isSignUp ? 'Already have an account? Sign In' : 'Don’t have an account? Sign Up'}
-      </button>
-
-      {/* Success Pop-up Modal */}
+      {/* Success Pop-up */}
       {showPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-          <div className="bg-white p-8 rounded shadow-lg text-center">
-            <h3 className="text-2xl font-bold mb-4">Sign In Success!</h3>
-            <p className="text-gray-700">You have successfully signed in.</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg text-center animate-fade-in">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Success!</h3>
+            <p className="text-gray-600">You have successfully signed in.</p>
           </div>
         </div>
       )}

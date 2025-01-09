@@ -30,3 +30,4 @@ backend .env.development
 *.sln
 *.sw?
 .gitignore
+.vercel

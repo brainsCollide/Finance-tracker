@@ -10,7 +10,7 @@ const transactionSchema = new mongoose.Schema({
         required: true
     },
     type: {
-        type: String, // "income" or "expense"
+        type: String, 
         required: true
     },
     date: {

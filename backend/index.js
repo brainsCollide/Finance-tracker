@@ -1,5 +1,7 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const userRoute = require('./routes/userRoute');
 const authRoute = require('./routes/authRoute');
 const transactionRoutes = require('./routes/transactionRoutes');
@@ -10,8 +12,13 @@ const app = express();
 connectDB();
 
 
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173', // Replace with your frontend URL
+    credentials: true, // Allow credentials (cookies)
+}));
+
 app.use(express.json());
+app.use(cookieParser());
 
 app.use('/transactions', transactionRoutes)
 app.use('/auth', authRoute);

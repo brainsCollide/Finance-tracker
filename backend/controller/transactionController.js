@@ -1,11 +1,11 @@
+const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 
-
-
+// Get all transactions
 const getAllTransaction = async (req, res) => {
     try {
         const transactions = await Transaction.find();
-        res.json(transactions); // Return all transactions
+        res.json(transactions);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching transactions', error: error.message });
     }
@@ -18,18 +18,24 @@ const addATransaction = async (req, res) => {
             ...req.body,
         });
 
-        await newTransaction.save(); // Save to MongoDB
+        await newTransaction.save();
         res.status(201).json({ message: 'Successfully added a transaction', newTransaction });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(400).json({ message: 'Error adding transaction', error: error.message });
     }
 };
 
-// Edit (view) a transaction by ID
+// Get a single transaction by ID
 const editATransaction = async (req, res) => {
     try {
         const { id } = req.params;
-        const transaction = await Transaction.findOne({ id });
+
+        // Validate ID format
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid ID format' });
+        }
+
+        const transaction = await Transaction.findById(id);
 
         if (!transaction) {
             return res.status(404).json({ message: 'Transaction not found' });
@@ -45,17 +51,23 @@ const editATransaction = async (req, res) => {
 const updateATransaction = async (req, res) => {
     try {
         const { id } = req.params;
-        const updatedTransaction = await Transaction.findOneAndUpdate(
-            { id },
-            { ...req.body, date: new Date() }, // Update data
-            { new: true }
+
+        // Validate ID format
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid ID format' });
+        }
+
+        const updatedTransaction = await Transaction.findByIdAndUpdate(
+            id, // Use id directly, not an object
+            { ...req.body, date: new Date() }, // Updated data
+            { new: true } // Return the updated document
         );
 
         if (!updatedTransaction) {
             return res.status(404).json({ message: 'Transaction not found' });
         }
 
-        res.json(updatedTransaction);
+        res.json({ message: 'Transaction updated successfully', updatedTransaction });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -65,7 +77,13 @@ const updateATransaction = async (req, res) => {
 const deleteATransaction = async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedTransaction = await Transaction.findOneAndDelete({ id });
+
+        // Validate ID format
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid ID format' });
+        }
+
+        const deletedTransaction = await Transaction.findByIdAndDelete(id);
 
         if (!deletedTransaction) {
             return res.status(404).json({ message: 'Transaction not found' });
@@ -77,11 +95,10 @@ const deleteATransaction = async (req, res) => {
     }
 };
 
-
 module.exports = {
     getAllTransaction,
     addATransaction,
     editATransaction,
     updateATransaction,
-    deleteATransaction
+    deleteATransaction,
 };

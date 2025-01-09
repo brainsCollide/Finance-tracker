@@ -1,5 +1,11 @@
 const Joi = require('joi');
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+console.log('JWT_SECRET:', JWT_SECRET);
+
 
 const signUpSchema = Joi.object({
     username: Joi.string().min(3).max(10).required(),
@@ -48,32 +54,62 @@ const signUp = async (req, res) => {
 }
 
 const signIn = async (req, res) => {
-    const { error } = signInSchema.validate(req.body);
-    if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-    }
-
     const { email, password } = req.body;
 
     try {
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json({ message: 'User not found'});
+            return res.status(400).json({ message: 'User not found' });
         }
 
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials'});
+            return res.status(400).json({ message: 'Invalid credentials' });
         }
 
-        res.status(200).json({ message: 'Sign-in successful', user });
+        // Generate JWT
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
+        
+        // Set JWT in HttpOnly cookie
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
+            sameSite: 'strict',
+            maxAge: 3600000, // 1 hour
+        });
+
+        res.status(200).json({ message: 'Sign-in successful' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error });
+        console.error('Error in signIn:', error); // Log the error for debugging
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
+};
+
+const getCurrentUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(200).json({ user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+const logOut = (req, res) => {
+    res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+    res.status(200).json({ message: "Logout successful" });
 }
 
 
 module.exports = {
     signUp,
-    signIn
+    signIn,
+    logOut,
+    getCurrentUser
 };

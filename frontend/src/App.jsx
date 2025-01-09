@@ -4,6 +4,7 @@ import Dashboard from "./Components/Dashboard"
 import TransactionBar from "./Components/TransactionBar"
 import ProfileBoard from "./Components/ProfileBoard"
 
+
 function App() {
   const [activeSection, setActiveSection ] = useState('Dashboard');
 

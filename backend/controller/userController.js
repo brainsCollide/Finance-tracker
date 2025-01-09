@@ -4,6 +4,11 @@ const User = require('../models/User');
 const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid User ID' });
+        }
+
         const user = await User.findById(id);
 
         if (!user) {
@@ -18,7 +23,7 @@ const getUserById = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find();
+        const users = await User.find().select('-password');
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });

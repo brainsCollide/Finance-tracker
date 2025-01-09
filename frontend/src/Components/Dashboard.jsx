@@ -1,3 +1,6 @@
+import React, { useState } from 'react';
+import AddTransaction from './Widgets/AddTransaction';
+import Modal from './Widgets/Modal';
 import BarChart from './BarChart';
 import DoughnutChart from './DoughnutChart';
 import UpcomingBills from './Widgets/UpcomingBills';
@@ -17,7 +20,8 @@ const Card = ({ title, icon: Icon, value, description, bgColor }) => (
 );
 
 export default function Dashboard() {
-    const user = {name: 'John Doe', balance: 200000000, expense: 1000000};
+    const user = { name: 'John Doe', balance: 200000000, expense: 1000000 };
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
@@ -26,7 +30,10 @@ export default function Dashboard() {
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-0">
                     Welcome back, {user.name} 👋
                 </h1>
-                <button className="px-4 py-2 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 w-full sm:w-auto">
+                <button 
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 w-full sm:w-auto"
+                    onClick={() => setIsModalOpen(true)}
+                >
                     Add Transaction
                 </button>
             </div>
@@ -69,6 +76,11 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg shadow-md p-6">
                 <UpcomingBills />
             </div>
+
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+                <h2 className="text-xl font-semibold mb-4">Add Transaction</h2>
+                <AddTransaction />
+            </Modal>
         </div>
     );
 }

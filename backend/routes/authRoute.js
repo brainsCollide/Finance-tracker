@@ -5,7 +5,7 @@ const authenticate = require('../middleware/authenticate');
 const router = express.Router();
 
 // Routes
-router.post('/signup', signUp); // Sign up route
+router.post('/signup', signUp); 
 router.post('/signin', signIn); // Sign in route
 router.post('/logout', logOut); // Logout route
 router.get('/protected', authenticate, (req, res) => {

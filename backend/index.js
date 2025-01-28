@@ -9,22 +9,50 @@ const connectDB = require('./config/db');
 
 const app = express();
 
+// Connect to DB
 connectDB();
 
+const allowedOrigins = [
+    'http://localhost:5173', // Local frontend
+    /\.vercel\.app$/, // Allow all Vercel subdomains
+];
 
-app.use(cors({
-    origin: 'http://localhost:5173', // Replace with your frontend URL
-    credentials: true, // Allow credentials (cookies)
-}));
+// CORS Middleware
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            console.log('Request Origin:', origin); // Debug
+            if (!origin || allowedOrigins.some(allowedOrigin => {
+                if (typeof allowedOrigin === 'string') {
+                    return origin === allowedOrigin;
+                } else if (allowedOrigin instanceof RegExp) {
+                    return allowedOrigin.test(origin);
+                }
+                return false;
+            })) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        credentials: true, // Allow cookies and credentials
+    })
+);
 
+// Handle preflight requests
+app.options('*', cors());
+
+// Other Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/transactions', transactionRoutes)
+// Routes
+app.use('/transactions', transactionRoutes);
 app.use('/auth', authRoute);
 app.use('/users', userRoute);
 
-
-app.listen(5001, () => {
-    console.log('Server is running on port 5001');
+// Start the Server
+const PORT = process.env.PORT || 5001;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });

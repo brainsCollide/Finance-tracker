@@ -7,34 +7,23 @@ if (!JWT_SECRET) {
 }
 
 const authenticate = (req, res, next) => {
+    console.log("🔍 Incoming Request Headers:", req.headers);
+    console.log("🔍 Incoming Cookies:", req.cookies);
+
     const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-        return res.status(401).json({ message: 'Unauthorized: No token provided' });
+        return res.status(401).json({ message: "❌ Unauthorized: No token provided" });
     }
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('Cookies:', req.cookies);
-            console.log('Token:', token);
-            console.log('Decoded Token:', decoded);
-        }
-
+        console.log("✅ Token Verified:", decoded);
         req.user = decoded;
         next();
     } catch (error) {
-        console.error('Token Verification Error:', error.message);
-
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({ message: 'Unauthorized: Token expired' });
-        }
-        if (error.name === 'JsonWebTokenError') {
-            return res.status(401).json({ message: 'Unauthorized: Invalid token' });
-        }
-
-        res.status(401).json({ message: 'Unauthorized' });
+        console.error("❌ Token Verification Error:", error.message);
+        return res.status(401).json({ message: "❌ Unauthorized: Invalid or expired token" });
     }
 };
 

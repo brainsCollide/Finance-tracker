@@ -39,9 +39,6 @@ app.use(
     })
 );
 
-// Handle preflight requests
-app.options('*', cors());
-
 // Other Middleware
 app.use(express.json());
 app.use(cookieParser());
@@ -50,6 +47,13 @@ app.use(cookieParser());
 app.use('/transactions', transactionRoutes);
 app.use('/auth', authRoute);
 app.use('/users', userRoute);
+
+// Error Handler Middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    const code = err.code || 500;
+    res.status(code).json({ message: err.message });
+});
 
 // Start the Server
 const PORT = process.env.PORT || 5001;

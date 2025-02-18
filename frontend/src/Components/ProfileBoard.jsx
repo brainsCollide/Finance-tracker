@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axiosInstance from "../api/axiosInstance";
-import ProfilePage from "./ProfilePage"; // A separate component for showing the profile page
+import ProfilePage from "./ProfilePage";
 
 const ProfileBoard = () => {
   const [form, setForm] = useState({
@@ -11,8 +11,20 @@ const ProfileBoard = () => {
   const [isSignUp, setIsSignUp] = useState(true);
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [currentPage, setCurrentPage] = useState("auth"); // Tracks the current page ('auth' or 'profile')
-  const [userData, setUserData] = useState(null); // Stores user data after sign-in
+  const [userData, setUserData] = useState(null); // Stores user data
+
+  // ✅ Check authentication status on component mount
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const response = await axiosInstance.get("/auth/current", { withCredentials: true });
+        setUserData(response.data.user);
+      } catch (error) {
+        console.error("Not authenticated:", error.response?.data?.message || error.message);
+      }
+    };
+    checkAuthStatus();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -21,34 +33,46 @@ const ProfileBoard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage({ text: "", type: "" });
 
     try {
       if (isSignUp) {
-        const response = await axiosInstance.post("/auth/signup", form);
-        setMessage(response.data.message);
-      } else {
-        const response = await axiosInstance.post(
+        const signUpResponse = await axiosInstance.post("/auth/signup", form);
+        setMessage({ text: "Account created successfully!", type: "success" });
+
+        // ✅ Step 2: Automatically log in after successful sign-up
+        const signInResponse = await axiosInstance.post(
           "/auth/signin",
           { email: form.email, password: form.password },
-          { withCredentials: true } // Include credentials
+          { withCredentials: true }
         );
 
-        setMessage(response.data.message);
-
-        // Fetch current user and navigate to profile page
+        // ✅ Step 3: Fetch user data
         const userResponse = await axiosInstance.get("/auth/current", { withCredentials: true });
-        setUserData(userResponse.data.user); // Save user data
-        setCurrentPage("profile"); // Switch to profile page
+        setUserData(userResponse.data.user);
+      } else {
+        const response = await axiosInstance.post("/auth/signin", 
+          { email: form.email, password: form.password },
+          { withCredentials: true } 
+        );
+
+        setMessage({ text: response.data.message, type: "success" });
+
+        // Fetch user after sign-in
+        const userResponse = await axiosInstance.get("/auth/current", { withCredentials: true });
+        setUserData(userResponse.data.user);
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message || "Authentication failed. Please try again.";
-      setMessage(errorMessage);
+      setMessage({
+        text: error.response?.data?.message || "Authentication failed. Please try again.",
+        type: "error",  
+      });
     }
   };
 
-  if (currentPage === "profile") {
-    return <ProfilePage user={userData} onLogout={() => setCurrentPage("auth")} />;
+  // ✅ If the user is authenticated, show ProfilePage
+  if (userData) {
+    return <ProfilePage user={userData} onLogout={() => setUserData(null)} />;
   }
 
   return (
@@ -136,7 +160,15 @@ const ProfileBoard = () => {
           )}
         </p>
 
-        {message && <p className="mt-4 text-center text-sm text-red-500">{message}</p>}
+        {message.text && (
+          <p
+            className={`mt-4 text-center text-sm ${
+              message.type === "success" ? "text-green-500" : "text-red-500"
+            }`}
+          >
+            {message.text}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -11,12 +11,11 @@ import {
 const navLinks = [
   { id: 1, title: "Dashboard", icon: LayoutDashboard, path: "/Dashboard" },
   { id: 2, title: "Account", icon: CircleUserRound, path: "/Account" },
-  { id: 3, title: "Transactions", icon: ArrowRightLeft, path: "/TransactionBar" },
-  { id: 4, title: "Logout", icon: MoveRight, path: "/Logout" },
+  { id: 3, title: "Transactions", icon: ArrowRightLeft, path: "/TransactionBar" }
 ];
 
 function Sidebar({ onSectionChange }) {
-  const [activeNavBar, setActiveNavBar] = useState(1);
+  const [activeNavBar, setActiveNavBar] = useState(1);``
   const [isExpanded, setIsExpanded] = useState(true);
 
   useEffect(() => {

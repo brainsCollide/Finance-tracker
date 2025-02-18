@@ -9,6 +9,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import axiosInstance from "../api/axiosInstance"; // Import Axios instance
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -56,7 +57,7 @@ export const options = {
     y: {
       ticks: {
         color: "#6B7280",
-        callback: (value) => `Rp. ${value / 1_000_000}M`, // Show millions
+        callback: (value) => `Rp. ${value}M`, // Show millions
       },
       grid: {
         color: "#E5E7EB", // Tailwind gray-200
@@ -67,18 +68,22 @@ export const options = {
 
 const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function generateRandomData() {
-  return Array.from({ length: 12 }, () => Math.floor(Math.random() * 10_000_000) + 10_000_000);
-}
+export default function BarChartComponent({ monthlyStats }) {
+  console.log("✅ Received Monthly Stats in BarChart:", monthlyStats); // ✅ Debugging
 
-export default function BarChartComponent() {
-  const [expenses, setExpenses] = useState([]);
-  const [income, setIncome] = useState([]);
+  if (!Array.isArray(monthlyStats)) {
+    console.warn("⚠️ monthlyStats is not an array!", monthlyStats);
+    return <p className="text-red-500">Error: Monthly Stats is not available.</p>; // Prevent rendering crash
+  }
 
-  useEffect(() => {
-    setExpenses(generateRandomData());
-    setIncome(generateRandomData());
-  }, []);
+  const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  
+  // ✅ Ensure correct values (prevent undefined errors)
+  const expenses = monthlyStats.map((entry) => entry.totalExpenses || 0);
+  const income = monthlyStats.map((entry) => entry.totalIncome || 0);
+
+  console.log("✅ Updated Expenses:", expenses); // ✅ Debug Expenses
+  console.log("✅ Updated Income:", income); // ✅ Debug Income
 
   const data = {
     labels,
@@ -86,13 +91,13 @@ export default function BarChartComponent() {
       {
         label: "Expenses",
         data: expenses,
-        backgroundColor: "rgba(239, 68, 68, 0.8)", // Tailwind red-500
-        borderRadius: 5, // Rounded bars
+        backgroundColor: "rgba(239, 68, 68, 0.8)",
+        borderRadius: 5,
       },
       {
         label: "Income",
         data: income,
-        backgroundColor: "rgba(14, 165, 233, 0.8)", // Tailwind sky-500
+        backgroundColor: "rgba(14, 165, 233, 0.8)",
         borderRadius: 5,
       },
     ],

@@ -4,15 +4,22 @@ import axiosInstance from "../api/axiosInstance";
 const TransactionBar = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // To handle errors
 
   useEffect(() => {
     const fetchTransactions = async () => {
       setLoading(true);
+      setError(null); // Reset error before fetching
       try {
-        const response = await axiosInstance.get("/transactions");
+        // Fetch transactions for the logged-in user
+        const response = await axiosInstance.get("/transactions", {
+          withCredentials: true, // Ensures cookies or tokens are sent
+        });
         setTransactions(response.data);
       } catch (error) {
-        console.log("Error fetching data:", error);
+        setError(
+          error.response?.data?.message || "Error fetching transactions"
+        );
       } finally {
         setLoading(false);
       }
@@ -23,23 +30,38 @@ const TransactionBar = () => {
 
   const handleDelete = async (id) => {
     try {
-      await axiosInstance.delete(`/transactions/${id}`);
+      await axiosInstance.delete(`/transactions/${id}`, {
+        withCredentials: true, // Ensures authentication for delete
+      });
       setTransactions((prevTransactions) =>
         prevTransactions.filter((transaction) => transaction._id !== id)
       );
-      console.log(`Transaction with id ${id} deleted successfully.`);
     } catch (error) {
-      console.error("Error deleting transaction:", error.response?.data || error.message);
+      console.error(
+        "Error deleting transaction:",
+        error.response?.data || error.message
+      );
     }
   };
 
   return (
     <div className="p-10 min-h-screen bg-gray-50">
-      <h2 className="text-3xl font-extrabold text-gray-800 mb-8">Transactions</h2>
+      <h2 className="text-3xl font-extrabold text-gray-800 mb-8">
+        Your Transactions
+      </h2>
+
+      {/* Show error if any */}
+      {error && (
+        <div className="text-red-500 text-center mb-4">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center h-40">
-          <p className="text-gray-500 text-lg animate-pulse">Loading transactions...</p>
+          <p className="text-gray-500 text-lg animate-pulse">
+            Loading transactions...
+          </p>
         </div>
       ) : transactions.length === 0 ? (
         <div className="flex justify-center items-center h-40">
@@ -51,7 +73,9 @@ const TransactionBar = () => {
             <div
               key={transaction._id}
               className={`p-6 bg-white shadow-md rounded-lg border-l-4 transition-transform transform hover:scale-105 ${
-                transaction.type === "income" ? "border-green-500" : "border-red-500"
+                transaction.type === "income"
+                  ? "border-green-500"
+                  : "border-red-500"
               }`}
             >
               <div className="flex justify-between items-center">
@@ -74,10 +98,12 @@ const TransactionBar = () => {
               <div className="mt-4">
                 <span
                   className={`text-2xl font-bold ${
-                    transaction.type === "income" ? "text-green-500" : "text-red-500"
+                    transaction.type === "income"
+                      ? "text-green-500"
+                      : "text-red-500"
                   }`}
                 >
-                  ₺{transaction.amount.toLocaleString("de-DE")}
+                  Rp.{transaction.amount.toLocaleString("de-DE")}
                 </span>
               </div>
               <button

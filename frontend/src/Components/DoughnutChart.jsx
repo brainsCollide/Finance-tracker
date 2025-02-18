@@ -8,6 +8,8 @@ import {
   Legend,
 } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
+import { useBalanceStore } from "../stores/balance.store";
+
 
 ChartJS.register(CategoryScale, LinearScale, ArcElement, Tooltip, Legend);
 
@@ -42,24 +44,19 @@ export const options = {
   },
 };
 
-function generateRandomData() {
-  return Array.from({ length: 2 }, () => Math.floor(Math.random() * 10_000_000) + 10_000_000);
-}
-
 export default function DoughnutChartComponent() {
-  const [dataValues, setDataValues] = useState([]);
 
-  useEffect(() => {
-    setDataValues(generateRandomData());
-  }, []);
+  const expenses = useBalanceStore((state) => state.expenses);
+  const income = useBalanceStore((state) => state.income);
+  
 
   const data = {
     labels: ["Expenses", "Income"],
     datasets: [
       {
         label: "Amount",
-        data: dataValues,
-        backgroundColor: ["rgba(239, 68, 68, 0.8)", "rgba(14, 165, 233, 0.8)"], // Vibrant colors
+        data: [expenses, income], // Using real data instead of random numbers
+        backgroundColor: ["rgba(239, 68, 68, 0.8)", "rgba(14, 165, 233, 0.8)"],
         hoverBackgroundColor: ["rgba(239, 68, 68, 1)", "rgba(14, 165, 233, 1)"],
         borderWidth: 2,
       },

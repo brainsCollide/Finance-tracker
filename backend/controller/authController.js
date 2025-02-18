@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const User = require('../models/User');
+const Transaction = require('../models/Transaction');
 const jwt = require('jsonwebtoken');
 
 
@@ -14,8 +15,8 @@ const signUpSchema = Joi.object({
         .min(6) // Minimum length of 6 characters
         .pattern(/^[a-z]+$/) // Ensure only lowercase letters
         .messages({
-            'string.pattern.base': 'Password needs to be lowercase', // Custom message for pattern mismatch
-            'string.min': 'Password must be at least 6 characters long' // Optional: Custom message for min length
+            'string.pattern.base': 'Password needs to be lowercase', 
+            'string.min': 'Password must be at least 6 characters long' 
         })
         .required()
 });
@@ -87,7 +88,15 @@ const signIn = async (req, res) => {
 
 const getCurrentUser = async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId).select('-password');
+        const user = await User.findById(req.user.userId)
+        .select('-password')
+        .populate({
+            path: 'transactions',
+            model: 'Transaction',    
+        });
+
+        console.log("Fetched User:", user);
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }

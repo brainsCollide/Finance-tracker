@@ -76,6 +76,7 @@ const signIn = async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
             sameSite: 'strict',
+            sameSite: 'None',
             maxAge: 3600000, // 1 hour
         });
 
@@ -87,6 +88,9 @@ const signIn = async (req, res) => {
 };
 
 const getCurrentUser = async (req, res) => {
+    console.log("🔍 Request Headers:", req.headers); // ✅ Debug Authorization header
+    console.log("🔍 Cookies Received:", req.cookies); // 
+
     try {
         const user = await User.findById(req.user.userId)
         .select('-password')

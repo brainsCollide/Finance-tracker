@@ -13,16 +13,18 @@ const app = express();
 connectDB();
 
 const allowedOrigins = [
-    'http://localhost:5173', // Local frontend
-    /\.vercel\.app$/, // Allow all Vercel subdomains
+    'http://localhost:5173',  // ✅ Local frontend
+    /\.vercel\.app$/,         // ✅ Allow all Vercel subdomains
+    /\.railway\.app$/,        // ✅ Allow all Railway subdomains
+    'https://finance-tracker-app-beige.vercel.app', // ✅ Specific frontend URL (if applicable)
 ];
 
 // CORS Middleware
 app.use(
     cors({
         origin: (origin, callback) => {
-            console.log('Request Origin:', origin); // Debug
-            if (!origin || allowedOrigins.some(allowedOrigin => {
+            console.log('🔍 Request Origin:', origin);
+            if (!origin || allowedOrigins.some((allowedOrigin) => {
                 if (typeof allowedOrigin === 'string') {
                     return origin === allowedOrigin;
                 } else if (allowedOrigin instanceof RegExp) {
@@ -32,10 +34,10 @@ app.use(
             })) {
                 callback(null, true);
             } else {
-                callback(new Error('Not allowed by CORS'));
+                callback(new Error('❌ Not allowed by CORS'));
             }
         },
-        credentials: true, // Allow cookies and credentials
+        credentials: true, // ✅ Allow cookies and authentication headers
     })
 );
 

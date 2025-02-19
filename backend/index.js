@@ -16,7 +16,7 @@ const allowedOrigins = [
     'http://localhost:5173', // ✅ Local frontend
     'http://192.168.1.100:5173', // ✅ Network frontend
     'http://localhost:3000', // ✅ Local frontend
-    'https://finance-tracker-app-brainscollide-brainscollides-projects.vercel.app', // ✅ Your Vercel frontend
+    'https://finance-tracker-app-beige.vercel.app', // ✅ Your Vercel frontend
     'https://dashboard-production-fd39.up.railway.app'
 ];
 

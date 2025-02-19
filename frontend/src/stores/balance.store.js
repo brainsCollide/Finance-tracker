@@ -20,6 +20,18 @@ export const useBalanceStore = create((set) => ({
     set(() => {
       console.log("🔍 Incoming Monthly Stats:", stats);
 
+      // ✅ Ensure `stats` is always an array
+      if (!Array.isArray(stats)) {
+        console.warn("⚠️ Invalid stats format received:", stats);
+        return {
+          monthlyStats: Array.from({ length: 12 }, (_, index) => ({
+            month: index + 1,
+            totalIncome: 0,
+            totalExpenses: 0,
+          })),
+        };
+      }
+
       // ✅ Create a fresh array with default values
       const updatedStats = Array.from({ length: 12 }, (_, index) => ({
         month: index + 1,

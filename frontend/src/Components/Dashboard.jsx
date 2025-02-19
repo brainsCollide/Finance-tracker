@@ -38,35 +38,34 @@ export default function Dashboard() {
   console.log("Income:", income); // Debugging
   console.log("Expenses:", expenses); // Debugging
 
-  useEffect(() => {
+ useEffect(() => {
     const fetchUserData = async () => {
-      try {
-        const response = await axiosInstance.get("/auth/current", { withCredentials: true });
-        setUser(response.data.user); // ✅ Store user data
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      }
+        try {
+            const response = await axiosInstance.get("/auth/current", { withCredentials: true });
+            setUser(response.data.user); // ✅ Store user data
+            console.log("✅ User Data Fetched:", response.data.user);
+        } catch (error) {
+            console.error("❌ Error fetching user data:", error);
+            setUser(null); // Clear user if auth fails
+        }
     };
 
     const fetchStats = async () => {
-      try {
-        const response = await axiosInstance.get("/transactions/stats");
-        console.log("Fetched Stats:", response.data); // ✅ Debugging
-  
-        addExpenses(Number(response.data.expenses) || 0);
-        addIncome(Number(response.data.income) || 0);
-        
-  
-        // ✅ Ensure we pass the correct format
-        setMonthlyStats(response.data.monthlyStats);
-      } catch (error) {
-        console.error("Error fetching transaction stats:", error);
-      }
+        try {
+            const response = await axiosInstance.get("/transactions/stats", { withCredentials: true });
+            console.log("✅ Fetched Stats:", response.data); 
+
+            addExpenses(Number(response.data.expenses) || 0);
+            addIncome(Number(response.data.income) || 0);
+            setMonthlyStats(response.data.monthlyStats);
+        } catch (error) {
+            console.error("❌ Error fetching transaction stats:", error);
+        }
     };
-  
+
     fetchUserData();
     fetchStats();
-  }, []);
+}, []);
 
   const remainingBalance = balance + income - expenses;
 

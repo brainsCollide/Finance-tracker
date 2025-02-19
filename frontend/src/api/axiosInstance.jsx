@@ -1,13 +1,8 @@
-import axios from 'axios';
-
+import axios from "axios";
 
 const axiosInstance = axios.create({
-    baseURL: 'http://localhost:5001', 
-    withCredentials: true, // Include cookies in requests
+    baseURL: "https://dashboard-production-fd39.up.railway.app", // ✅ API base URL
+    withCredentials: true, // ✅ Important: Allows cookies to be sent
 });
-
-
-
-console.log('Axios Base URL:', axiosInstance.defaults.baseURL);
 
 export default axiosInstance;

@@ -18,7 +18,7 @@ const authenticate = (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET);
         console.log("✅ Token Verified:", decoded);
         req.user = decoded;
         next();
@@ -27,4 +27,5 @@ const authenticate = (req, res, next) => {
         return res.status(401).json({ message: "❌ Unauthorized: Invalid or expired token" });
     }
 };
+
 module.exports = authenticate;

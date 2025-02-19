@@ -53,36 +53,32 @@ const signUp = async (req, res) => {
         res.status(500).json({ message: 'Server error', error });
     }
 }
+
 const signIn = async (req, res) => {
     const { email, password } = req.body;
 
     try {
         const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: 'User not found' });
-        }
+        if (!user) return res.status(400).json({ message: 'User not found' });
 
         const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
+        if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
         // Generate JWT
         const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
-        
-        // Set JWT in HttpOnly cookie
+
+        // ✅ Secure Cookie Settings
         res.cookie("token", token, {
-            httpOnly: true, // ✅ Security measure to prevent XSS
-            secure: true, // ✅ Must be true for HTTPS (Railway uses HTTPS)
-            sameSite: "None", // ✅ Required for cross-origin cookies
-            domain: "dashboard-production-fd39.up.railway.app", // ✅ Allow cookies to be sent across subdomains
-            path: "/",
-            maxAge: 3600000, // ✅ 1 hour
+            httpOnly: true,  // 🔥 Prevents JavaScript access (security)
+            secure: true,  // 🔥 Must be `true` for HTTPS (Railway uses HTTPS)
+            sameSite: "None", // 🔥 Allows cross-origin cookies (Vercel → Railway)
+            path: "/", // ✅ Ensure cookie is available for all requests
+            maxAge: 3600000, // ✅ 1 hour expiration
         });
 
         res.status(200).json({ message: 'Sign-in successful' });
     } catch (error) {
-        console.error('Error in signIn:', error); // Log the error for debugging
+        console.error('Error in signIn:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
@@ -113,9 +109,10 @@ const getCurrentUser = async (req, res) => {
 const logOut = (req, res) => {
     res.clearCookie("token", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-      });
+        secure: true,  // ✅ Ensure HTTPS compatibility
+        sameSite: "None",  // ✅ Fix cross-origin issues
+        path: "/",  // ✅ Ensure it's cleared for all requests
+    });
     res.status(200).json({ message: "Logout successful" });
 }
 

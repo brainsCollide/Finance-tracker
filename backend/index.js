@@ -12,32 +12,31 @@ const app = express();
 // Connect to DB
 connectDB();
 
-const allowedOrigins = [
-    'http://localhost:5173', // ✅ Local frontend
-    'http://192.168.1.100:5173', // ✅ Network frontend
-    'http://localhost:3000', // ✅ Local frontend
-    'https://finance-tracker-app-beige.vercel.app', // ✅ Your Vercel frontend
-    'https://dashboard-production-fd39.up.railway.app'
-];
+app.use(express.json());
+app.use(cookieParser()); // ✅ Load cookies before CORS
 
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
+            const allowedOrigins = [
+                'http://localhost:5173',
+                'http://192.168.1.100:5173',
+                'http://localhost:3000',
+                'https://finance-tracker-app-beige.vercel.app',
+                'https://dashboard-production-fd39.up.railway.app'
+            ];
+
+            const isVercel = origin?.endsWith('.vercel.app');
+            if (!origin || allowedOrigins.includes(origin) || isVercel) {
                 callback(null, true);
             } else {
                 callback(new Error("❌ CORS not allowed"));
             }
         },
-        credentials: true, // ✅ This allows cookies to be sent
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Allow all HTTP methods
-        allowedHeaders: ["Content-Type", "Authorization"], //  // ✅ Allows cookies and authentication headers
+        credentials: true, // ✅ Allow cookies and authentication headers
     })
 );
 
-// Other Middleware
-app.use(cookieParser());
-app.use(express.json());
 
 // Routes
 app.use('/transactions', transactionRoutes);

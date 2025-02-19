@@ -71,11 +71,13 @@ const signIn = async (req, res) => {
         const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
         
         // Set JWT in HttpOnly cookie
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
-            sameSite: 'None',
-            maxAge: 3600000, // 1 hour
+        res.cookie("token", token, {
+            httpOnly: true, // ✅ Security measure to prevent XSS
+            secure: true, // ✅ Must be true for HTTPS (Railway uses HTTPS)
+            sameSite: "None", // ✅ Required for cross-origin cookies
+            domain: "dashboard-production-fd39.up.railway.app", // ✅ Allow cookies to be sent across subdomains
+            path: "/",
+            maxAge: 3600000, // ✅ 1 hour
         });
 
         res.status(200).json({ message: 'Sign-in successful' });

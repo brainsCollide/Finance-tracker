@@ -29,13 +29,15 @@ app.use(
                 callback(new Error("❌ CORS not allowed"));
             }
         },
-        credentials: true, // ✅ Allows cookies and authentication headers
+        credentials: true, // ✅ This allows cookies to be sent
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ Allow all HTTP methods
+        allowedHeaders: ["Content-Type", "Authorization"], //  // ✅ Allows cookies and authentication headers
     })
 );
 
 // Other Middleware
-app.use(express.json());
 app.use(cookieParser());
+app.use(express.json());
 
 // Routes
 app.use('/transactions', transactionRoutes);

@@ -10,14 +10,15 @@ const authenticate = (req, res, next) => {
     console.log("🔍 Incoming Request Headers:", req.headers);
     console.log("🔍 Incoming Cookies:", req.cookies);
 
-    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
     if (!token) {
+        console.log("❌ No Token Provided!");
         return res.status(401).json({ message: "❌ Unauthorized: No token provided" });
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         console.log("✅ Token Verified:", decoded);
         req.user = decoded;
         next();
@@ -26,5 +27,4 @@ const authenticate = (req, res, next) => {
         return res.status(401).json({ message: "❌ Unauthorized: Invalid or expired token" });
     }
 };
-
 module.exports = authenticate;

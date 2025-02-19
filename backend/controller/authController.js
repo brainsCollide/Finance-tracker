@@ -53,7 +53,6 @@ const signUp = async (req, res) => {
         res.status(500).json({ message: 'Server error', error });
     }
 }
-
 const signIn = async (req, res) => {
     const { email, password } = req.body;
 
@@ -75,7 +74,6 @@ const signIn = async (req, res) => {
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
-            sameSite: 'strict',
             sameSite: 'None',
             maxAge: 3600000, // 1 hour
         });

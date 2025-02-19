@@ -13,31 +13,23 @@ const app = express();
 connectDB();
 
 const allowedOrigins = [
-    'http://localhost:5173',  // ✅ Local frontend
-    /\.vercel\.app$/,         // ✅ Allow all Vercel subdomains
-    /\.railway\.app$/,        // ✅ Allow all Railway subdomains
-    'https://finance-tracker-app-beige.vercel.app', // ✅ Specific frontend URL (if applicable)
+    'http://localhost:5173', // ✅ Local frontend
+    'http://192.168.1.100:5173', // ✅ Network frontend
+    'http://localhost:3000', // ✅ Local frontend
+    'https://finance-tracker-app-brainscollide-brainscollides-projects.vercel.app', // ✅ Your Vercel frontend
+    'https://dashboard-production-fd39.up.railway.app'
 ];
 
-// CORS Middleware
 app.use(
     cors({
         origin: (origin, callback) => {
-            console.log('🔍 Request Origin:', origin);
-            if (!origin || allowedOrigins.some((allowedOrigin) => {
-                if (typeof allowedOrigin === 'string') {
-                    return origin === allowedOrigin;
-                } else if (allowedOrigin instanceof RegExp) {
-                    return allowedOrigin.test(origin);
-                }
-                return false;
-            })) {
+            if (!origin || allowedOrigins.includes(origin)) {
                 callback(null, true);
             } else {
-                callback(new Error('❌ Not allowed by CORS'));
+                callback(new Error("❌ CORS not allowed"));
             }
         },
-        credentials: true, // ✅ Allow cookies and authentication headers
+        credentials: true, // ✅ Allows cookies and authentication headers
     })
 );
 

@@ -19,28 +19,21 @@ app.use(cookieParser()); // ✅ Ensure cookies are parsed
 // ✅ Fixed CORS Configuration
 app.use(
     cors({
-        origin: (origin, callback) => {
-            const allowedOrigins = [
-                'http://localhost:5173',
-                'http://192.168.1.100:5173',
-                'http://localhost:3000',
-                'https://finance-tracker-nine-rosy.vercel.app',
-                'https://dashboard-production-fd39.up.railway.app'
-            ];
-
-            const isVercel = origin?.endsWith('.vercel.app');
-            if (!origin || allowedOrigins.includes(origin) || isVercel) {
-                callback(null, true);
-            } else {
-                callback(new Error("❌ CORS not allowed"));
-            }
-        },
-        credentials: true, // ✅ Allow credentials (cookies & auth headers)
+        origin: "https://finance-tracker-nine-rosy.vercel.app", // ✅ Replace with your frontend URL
+        credentials: true, // ✅ Allows cookies & authentication headers
+        methods: ["GET", "POST", "PUT", "DELETE"], // ✅ Explicitly allow methods
+        allowedHeaders: ["Content-Type", "Authorization"], // ✅ Ensure correct headers are allowed
     })
 );
 
-// ✅ Fix: Set Cookie Security Correctly Based on Environment
-const isProduction = process.env.NODE_ENV === 'production';
+// ✅ Ensure Cookies & Headers Are Sent in Every Response
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "https://finance-tracker-nine-rosy.vercel.app");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    next();
+});
 
 // Routes
 app.use('/transactions', transactionRoutes);
@@ -53,6 +46,7 @@ app.use((err, req, res, next) => {
     const code = err.status || 500;
     res.status(code).json({ message: err.message });
 });
+
 
 // Start the Server
 const PORT = process.env.PORT || 5001;

@@ -3,16 +3,21 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 const isProduction = process.env.NODE_ENV === 'production';
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
-console.log('JWT_SECRET:', JWT_SECRET);
+const JWT_SECRET = process.env.JWT_SECRET;
 
+if (!JWT_SECRET) {
+    throw new Error("❌ JWT_SECRET is not defined in environment variables");
+}
 
+console.log("✅ JWT_SECRET Loaded");
+
+// ✅ Schema Validation
 const signUpSchema = Joi.object({
     username: Joi.string().min(3).max(10).required(),
     email: Joi.string().email().required(),
     password: Joi.string()
-        .min(6) // Minimum length of 6 characters
-        .pattern(/^[a-z]+$/) // Ensure only lowercase letters
+        .min(6)
+        .pattern(/^[a-z]+$/) 
         .messages({
             'string.pattern.base': 'Password needs to be lowercase', 
             'string.min': 'Password must be at least 6 characters long' 
@@ -25,7 +30,7 @@ const signInSchema = Joi.object({
     password: Joi.string().min(6).required()
 });
 
-
+// ✅ Sign-Up Controller
 const signUp = async (req, res) => {
     const { error } = signUpSchema.validate(req.body);
     if (error) {
@@ -44,15 +49,16 @@ const signUp = async (req, res) => {
             return res.status(400).json({ message: 'Username already exists' })
         }
 
-        const newUser = new User({username, email, password});
+        const newUser = new User({ username, email, password });
         await newUser.save();
 
-        res.status(202).json({message: 'User successfully created', newUser});
+        res.status(201).json({ message: 'User successfully created', newUser });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
-}
+};
 
+// ✅ Sign-In Controller
 const signIn = async (req, res) => {
     const { email, password } = req.body;
 
@@ -68,38 +74,40 @@ const signIn = async (req, res) => {
 
         // ✅ Fix: Set Cookies Correctly
         res.cookie("token", token, {
-            httpOnly: true,  // 🔥 Prevents JavaScript access (XSS protection)
+            httpOnly: true,
             secure: isProduction,  // 🔥 Only secure in production
             sameSite: "None", // 🔥 Required for cross-origin requests
-            path: "/", // ✅ Ensure cookie is available for all requests
+            path: "/",
             maxAge: 3600000, // ✅ 1 hour expiration
         });
 
         res.status(200).json({ message: 'Sign-in successful' });
     } catch (error) {
-        console.error('Error in signIn:', error);
+        console.error('❌ Error in signIn:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
+// ✅ Logout Controller
 const logOut = (req, res) => {
     res.clearCookie("token", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production", // ✅ Only secure in production
+        secure: isProduction,
         sameSite: "None",
-        path: "/", 
+        path: "/",
     });
 
     res.status(200).json({ message: "Logout successful" });
 };
 
+// ✅ Get Current User Controller
 const getCurrentUser = async (req, res) => {
     console.log("🔍 Request Headers:", req.headers);
     console.log("🔍 Cookies Received:", req.cookies);
 
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ message: "No token provided" });
+        return res.status(401).json({ message: "❌ Unauthorized: No token provided" });
     }
 
     try {
@@ -111,7 +119,7 @@ const getCurrentUser = async (req, res) => {
         }
         res.status(200).json({ user });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(401).json({ message: "❌ Unauthorized: Invalid or expired token", error: error.message });
     }
 };
 

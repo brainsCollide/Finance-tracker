@@ -10,7 +10,11 @@ const authenticate = (req, res, next) => {
     console.log("🔍 Incoming Request Headers:", req.headers);
     console.log("🔍 Incoming Cookies:", req.cookies);
 
-    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+    const token = req.cookies.token || null;
+
+    if (!token && req.headers.authorization) {
+        token = req.headers.authorization.split(" ")[1];
+    }
 
     if (!token) {
         console.log("❌ No Token Provided!");

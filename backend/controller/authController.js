@@ -1,9 +1,8 @@
 const Joi = require('joi');
 const User = require('../models/User');
-const Transaction = require('../models/Transaction');
 const jwt = require('jsonwebtoken');
 
-
+const isProduction = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 console.log('JWT_SECRET:', JWT_SECRET);
 
@@ -64,14 +63,14 @@ const signIn = async (req, res) => {
         const isMatch = await user.comparePassword(password);
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
-        // Generate JWT
+        // ✅ Generate JWT Token
         const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
 
-        // ✅ Secure Cookie Settings
+        // ✅ Fix: Set Cookies Correctly
         res.cookie("token", token, {
-            httpOnly: true,  // 🔥 Prevents JavaScript access (security)
-            secure: true,  // 🔥 Must be `true` for HTTPS (Railway uses HTTPS)
-            sameSite: "None", // 🔥 Allows cross-origin cookies (Vercel → Railway)
+            httpOnly: true,  // 🔥 Prevents JavaScript access (XSS protection)
+            secure: isProduction,  // 🔥 Only secure in production
+            sameSite: "None", // 🔥 Required for cross-origin requests
             path: "/", // ✅ Ensure cookie is available for all requests
             maxAge: 3600000, // ✅ 1 hour expiration
         });
@@ -83,19 +82,29 @@ const signIn = async (req, res) => {
     }
 };
 
+const logOut = (req, res) => {
+    res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // ✅ Only secure in production
+        sameSite: "None",
+        path: "/", 
+    });
+
+    res.status(200).json({ message: "Logout successful" });
+};
+
 const getCurrentUser = async (req, res) => {
-    console.log("🔍 Request Headers:", req.headers); // ✅ Debug Authorization header
-    console.log("🔍 Cookies Received:", req.cookies); // 
+    console.log("🔍 Request Headers:", req.headers);
+    console.log("🔍 Cookies Received:", req.cookies);
+
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ message: "No token provided" });
+    }
 
     try {
-        const user = await User.findById(req.user.userId)
-        .select('-password')
-        .populate({
-            path: 'transactions',
-            model: 'Transaction',    
-        });
-
-        console.log("Fetched User:", user);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await User.findById(decoded.userId).select('-password').populate('transactions');
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -106,20 +115,9 @@ const getCurrentUser = async (req, res) => {
     }
 };
 
-const logOut = (req, res) => {
-    res.clearCookie("token", {
-        httpOnly: true,
-        secure: true,  // ✅ Ensure HTTPS compatibility
-        sameSite: "None",  // ✅ Fix cross-origin issues
-        path: "/",  // ✅ Ensure it's cleared for all requests
-    });
-    res.status(200).json({ message: "Logout successful" });
-}
-
-
 module.exports = {
     signUp,
-    signIn,
     logOut,
+    signIn,
     getCurrentUser
 };

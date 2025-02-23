@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-    baseURL: "https://dashboard-production-fd39.up.railway.app", // ✅ API base URL
-    withCredentials: true, // ✅ Important: Allows cookies to be sent
+    baseURL: "http://localhost:5001", // ✅ Backend URL
+    withCredentials: true, // ✅ Ensures cookies are always sent
 });
 
 export default axiosInstance;

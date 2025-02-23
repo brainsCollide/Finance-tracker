@@ -45,8 +45,11 @@ export default function Dashboard() {
             setUser(response.data.user); // ✅ Store user data
             console.log("✅ User Data Fetched:", response.data.user);
         } catch (error) {
+          if (error.response && error.response.status === 401) {
+            console.warn("⚠️ User not logged in, skipping fetch.");
+        } else {
             console.error("❌ Error fetching user data:", error);
-            setUser(null); // Clear user if auth fails
+        }
         }
     };
 
@@ -73,7 +76,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 pl-12 sm:pl-0"> 
           {user ? `Welcome back, ${user.username} 👋` : "Welcome Back 👋"}
         </h1>
         <button

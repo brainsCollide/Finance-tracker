@@ -2,7 +2,7 @@ const Joi = require('joi');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === "production" && process.env.HOST_ENV === "production";
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
@@ -41,13 +41,10 @@ const signUp = async (req, res) => {
 
     try {
         const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: 'User already exists' })
-        }
+        if (existingUser) return res.status(400).json({ message: 'User already exists' });
+
         const existingUserName = await User.findOne({ username });
-        if (existingUserName) {
-            return res.status(400).json({ message: 'Username already exists' })
-        }
+        if (existingUserName) return res.status(400).json({ message: 'Username already exists' });
 
         const newUser = new User({ username, email, password });
         await newUser.save();
@@ -75,10 +72,10 @@ const signIn = async (req, res) => {
         // ✅ Fix: Set Cookies Correctly
         res.cookie("token", token, {
             httpOnly: true,
-            secure: isProduction,  // 🔥 Only secure in production
-            sameSite: "None", // 🔥 Required for cross-origin requests
+            secure: isProduction,  // ✅ Must be true for HTTPS, false for localhost
+            sameSite: isProduction ? "None" : "Lax", // ✅ "None" for production, "Lax" for localhost
             path: "/",
-            maxAge: 3600000, // ✅ 1 hour expiration
+            maxAge: 3600000, // ✅ 1-hour expiration
         });
 
         res.status(200).json({ message: 'Sign-in successful' });
@@ -88,13 +85,14 @@ const signIn = async (req, res) => {
     }
 };
 
-// ✅ Logout Controller
+// ✅ Logout Controller - Ensures Safari Clears Cookies
 const logOut = (req, res) => {
-    res.clearCookie("token", {
+    res.cookie("token", "", {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: "None",
+        secure: isProduction, // ✅ Must match how it was set
+        sameSite: isProduction ? "None" : "Lax",
         path: "/",
+        expires: new Date(0), // ✅ Forces Safari to remove the cookie immediately
     });
 
     res.status(200).json({ message: "Logout successful" });

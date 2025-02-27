@@ -1,68 +1,78 @@
 import { create } from "zustand";
+import axiosInstance from "../api/axiosInstance";
 
-export const useBalanceStore = create((set) => ({
+export const useBalanceStore = create((set, get) => ({
   income: 0,
   expenses: 0,
 
-  // ✅ Default state with an array of 12 months
+  // ✅ Monthly Stats
   monthlyStats: Array.from({ length: 12 }, (_, index) => ({
     month: index + 1,
     totalIncome: 0,
     totalExpenses: 0,
   })),
 
-  // ✅ Add income and expenses
-  addIncome: (amount) => set((state) => ({ income: state.income + amount })),
-  addExpenses: (amount) => set((state) => ({ expenses: state.expenses + amount })),
+  // ✅ Fetch transaction stats (Only Income & Expenses)
+  fetchTransactionStats: async () => {
+    try {
+      const response = await axiosInstance.get("/transactions/stats", { withCredentials: true });
 
-  // ✅ Correct Zustand update logic
-  setMonthlyStats: (stats) =>
-    set(() => {
-      console.log("🔍 Incoming Monthly Stats:", stats);
+      const income = Number(response.data.income) || 0;
+      const expenses = Number(response.data.expenses) || 0;
+      const monthlyStats = response.data.monthlyStats || [];
 
-      // ✅ Ensure `stats` is always an array
-      if (!Array.isArray(stats)) {
-        console.warn("⚠️ Invalid stats format received:", stats);
-        return {
-          monthlyStats: Array.from({ length: 12 }, (_, index) => ({
-            month: index + 1,
-            totalIncome: 0,
-            totalExpenses: 0,
-          })),
-        };
-      }
-
-      // ✅ Create a fresh array with default values
-      const updatedStats = Array.from({ length: 12 }, (_, index) => ({
-        month: index + 1,
-        totalIncome: 0,
-        totalExpenses: 0,
+      set(() => ({
+        income,
+        expenses,
+        monthlyStats,
       }));
 
-      // ✅ Process and replace each month's data
-      stats.forEach((entry) => {
-        if (typeof entry.month !== "number") {
-          console.warn("⚠️ Skipping invalid entry (missing month):", entry);
-          return;
-        }
+      console.log("✅ Transaction Stats Fetched:", { income, expenses, monthlyStats });
+    } catch (error) {
+      console.error("❌ Error fetching transaction stats:", error);
+    }
+  },
 
-        const monthIndex = entry.month - 1;
+  // ✅ Add income & re-fetch stats
+  addIncome: async (amount) => {
+    try {
+      const numericAmount = Number(amount) || 0;
+      await axiosInstance.post("/transactions", { type: "income", amount: numericAmount }, { withCredentials: true });
 
-        if (monthIndex < 0 || monthIndex > 11) {
-          console.warn("⚠️ Skipping out-of-range month:", entry);
-          return;
-        }
+      set((state) => ({
+        income: state.income + numericAmount, // Temporary state update for instant UI feedback
+      }));
 
-        updatedStats[monthIndex] = {
-          month: entry.month,
-          totalIncome: entry.totalIncome || 0,
-          totalExpenses: entry.totalExpenses || 0,
-        };
-      });
+      await get().fetchTransactionStats(); // ✅ Re-fetch latest stats to ensure correct balance
+    } catch (error) {
+      console.error("❌ Error adding income:", error);
+    }
+  },
 
-      console.log("✅ Zustand Updated Monthly Stats:", updatedStats);
+  // ✅ Add expenses & re-fetch stats
+  addExpenses: async (amount) => {
+    try {
+      const numericAmount = Number(amount) || 0;
+      await axiosInstance.post("/transactions", { type: "expense", amount: numericAmount }, { withCredentials: true });
 
-      // ✅ Replace state (ensuring React detects the change)
-      return { monthlyStats: [...updatedStats] };
-    }),
+      set((state) => ({
+        expenses: state.expenses + numericAmount, // Temporary state update for instant UI feedback
+      }));
+
+      await get().fetchTransactionStats(); // ✅ Re-fetch latest stats to ensure correct balance
+    } catch (error) {
+      console.error("❌ Error adding expense:", error);
+    }
+  },
+
+  // ✅ Set monthly transaction stats
+  setMonthlyStats: (stats) => {
+    if (!Array.isArray(stats)) {
+      console.warn("⚠️ Invalid stats format received:", stats);
+      return;
+    }
+
+    set(() => ({ monthlyStats: stats }));
+    console.log("✅ Monthly Stats Updated:", stats);
+  },
 }));

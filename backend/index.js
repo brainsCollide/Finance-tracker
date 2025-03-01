@@ -4,7 +4,8 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const userRoute = require('./routes/userRoute');
 const authRoute = require('./routes/authRoute');
-const transactionRoutes = require('./routes/transactionRoutes');
+const transactionRoute = require('./routes/transactionRoutes');
+const upcomingPaymentRoute = require('./routes/paymentRoute');
 const connectDB = require('./config/db');
 
 const app = express();
@@ -32,7 +33,8 @@ app.use(
 app.options("*", cors());
 
 // Routes
-app.use('/transactions', transactionRoutes);
+app.use('/transactions', transactionRoute);
+app.use('/payments', upcomingPaymentRoute);
 app.use('/auth', authRoute);
 app.use('/users', userRoute);
 

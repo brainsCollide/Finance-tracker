@@ -121,7 +121,7 @@ function Sidebar({ onSectionChange }) {
                   className={`flex items-center ${
                     isExpanded ? "justify-start space-x-4 px-4" : "justify-center"
                   } py-3 rounded-md cursor-pointer transition-all duration-300 ${
-                    activeNavBar === item.id ? "bg-red-500 text-white" : "hover:bg-gray-700 text-gray-300"
+                    activeNavBar === item.id ? "bg-[#2563EB] text-white" : "hover:bg-gray-700 text-gray-300"
                   }`}
                 >
                   <item.icon size={24} />

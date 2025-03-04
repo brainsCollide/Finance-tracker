@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,105 +13,99 @@ import { Bar } from "react-chartjs-2";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function BarChartComponent({ monthlyStats }) {
-  console.log("✅ Received Monthly Stats in BarChart:", monthlyStats); // ✅ Debugging
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  // ✅ Ensure valid data to prevent crashes
+  // ✅ Update width on resize (Prevents errors)
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   if (!Array.isArray(monthlyStats) || monthlyStats.length === 0) {
-    console.warn("⚠️ monthlyStats is empty or not an array!", monthlyStats);
-    return <p className="text-red-500">No data available for this year.</p>; // Prevent rendering crash
+    return <p className="text-gray-500">No data available for this year.</p>;
   }
 
-  // ✅ Define labels for months
   const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  
-  // ✅ Ensure correct values (prevent undefined errors)
-  const expenses = monthlyStats.map((entry) => entry.totalExpenses || 0);
-  const income = monthlyStats.map((entry) => entry.totalIncome || 0);
 
-  console.log("✅ Updated Expenses:", expenses); // ✅ Debug Expenses
-  console.log("✅ Updated Income:", income); // ✅ Debug Income
+  // ✅ Ensure all months have values (Prevents undefined errors)
+  const filledStats = Array.from({ length: 12 }, (_, index) =>
+    monthlyStats[index] || { totalExpenses: 0, totalIncome: 0 }
+  );
 
-  // ✅ Define Data
+  const expenses = filledStats.map((entry) => entry.totalExpenses || 0);
+  const income = filledStats.map((entry) => entry.totalIncome || 0);
+
   const data = {
     labels,
     datasets: [
       {
         label: "Expenses",
         data: expenses,
-        backgroundColor: "rgba(239, 68, 68, 0.8)", // Tailwind Red-500
+        backgroundColor: "rgba(239, 68, 68, 0.9)", // ✅ Red
+        borderColor: "rgba(239, 68, 68, 1)", // 🔥 Add border for better visibility
+        borderWidth: 2,
         borderRadius: 5,
-        barThickness: window.innerWidth < 768 ? 20 : 40, // ✅ Adaptive Bar Width
+        barThickness: windowWidth < 768 ? 16 : 32, // ✅ Adjust for responsiveness
+        categoryPercentage: 0.6, // ✅ Adjust width of bars in a category
+        barPercentage: 0.9, // ✅ Prevent bars from colliding
       },
       {
         label: "Income",
         data: income,
-        backgroundColor: "rgba(14, 165, 233, 0.8)", // Tailwind Sky-500
+        backgroundColor: "rgba(22, 163, 74, 0.9)", // ✅ Green
+        borderColor: "rgba(22, 163, 74, 1)", // 🔥 Add border
+        borderWidth: 2,
         borderRadius: 5,
-        barThickness: window.innerWidth < 768 ? 20 : 40, // ✅ Adaptive Bar Width
+        barThickness: windowWidth < 768 ? 16 : 32,
+        categoryPercentage: 0.6,
+        barPercentage: 0.9,
       },
     ],
   };
 
-  // ✅ Define Options
   const options = {
     responsive: true,
-    maintainAspectRatio: false, // ✅ Allow Dynamic Resizing
+    maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: window.innerWidth < 768 ? "bottom" : "top", // ✅ Move legend for better UX
+        position: windowWidth < 768 ? "bottom" : "top",
         labels: {
-          color: "#4B5563", // Tailwind gray-600
-          font: {
-            size: window.innerWidth < 768 ? 12 : 14, // ✅ Responsive Font Size
-          },
+          color: "#374151", // Tailwind Gray-700
+          font: { size: windowWidth < 768 ? 12 : 14 },
         },
       },
       title: {
         display: true,
         text: "Income vs Expenses",
-        color: "#1F2937", // Tailwind gray-800
-        font: {
-          size: window.innerWidth < 768 ? 14 : 18, // ✅ Adjust for Mobile
-          weight: "bold",
-        },
+        color: "#1F2937", // Tailwind Gray-800
+        font: { size: windowWidth < 768 ? 14 : 18, weight: "bold" },
       },
       tooltip: {
         callbacks: {
-          label: (context) => `Rp. ${context.raw.toLocaleString("id-ID")}`, // ✅ Proper Currency Formatting
+          label: (context) => `Rp. ${context.raw.toLocaleString("id-ID")}`,
         },
       },
     },
     scales: {
       x: {
-        ticks: {
-          color: "#6B7280", // Tailwind gray-500
-          font: {
-            size: window.innerWidth < 768 ? 10 : 12, // ✅ Responsive Font Size
-          },
-        },
-        grid: {
-          display: false, // ✅ Hide Grid for Cleaner Look
-        },
+        ticks: { color: "#6B7280", font: { size: windowWidth < 768 ? 10 : 12 } },
+        grid: { display: false },
       },
       y: {
         ticks: {
           color: "#6B7280",
-          font: {
-            size: window.innerWidth < 768 ? 10 : 12, // ✅ Responsive Font Size
-          },
+          font: { size: windowWidth < 768 ? 10 : 12 },
           callback: (value) => `Rp. ${value.toLocaleString("id-ID")}`,
         },
-        grid: {
-          color: "#E5E7EB", // Tailwind gray-200
-        },
+        grid: { color: "#E5E7EB" },
       },
     },
   };
 
   return (
     <div className="w-full overflow-x-auto">
-      {/* ✅ Makes Chart Scrollable in Small Screens */}
-      <div className="w-[90vw] sm:w-full" style={{ height: window.innerWidth < 768 ? "250px" : "350px" }}>
+      <div className="w-[90vw] sm:w-full" style={{ height: windowWidth < 768 ? "250px" : "350px" }}>
         <Bar options={options} data={data} />
       </div>
     </div>

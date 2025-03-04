@@ -39,7 +39,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
                 >
                     ✖
                 </button>
-
+                
                 {/* Inject children dynamically */}
                 <div className="p-4 sm:p-6">{children}</div>
             </div>

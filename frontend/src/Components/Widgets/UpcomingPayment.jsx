@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
+import { toast, ToastContainer } from "react-toastify";
 
 const UpcomingPayment = ({ onPaymentAdded, closeModal }) => {
   const [form, setForm] = useState({
@@ -8,8 +9,6 @@ const UpcomingPayment = ({ onPaymentAdded, closeModal }) => {
     dueDate: "",
     category: "other",
   });
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   // ✅ Handle input change
@@ -21,7 +20,7 @@ const UpcomingPayment = ({ onPaymentAdded, closeModal }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title || !form.amount || !form.dueDate) {
-      setError("All fields are required");
+      toast.error("Please fill all fields");
       return;
     }
 
@@ -35,8 +34,7 @@ const UpcomingPayment = ({ onPaymentAdded, closeModal }) => {
       }
 
       // ✅ Show success message
-      setSuccessMessage("Payment added successfully!");
-      setError("");
+      toast.success("Payment added successfully");
 
       // ✅ Reset form
       setForm({ title: "", amount: "", dueDate: "", category: "other" });
@@ -47,7 +45,7 @@ const UpcomingPayment = ({ onPaymentAdded, closeModal }) => {
         closeModal(); // Calls global modal close function
       }, 1500);
     } catch (error) {
-      setError("Error adding payment");
+      toast.error(error.response?.data?.message || "Failed to add payment");
     } finally {
       setLoading(false);
     }
@@ -101,14 +99,6 @@ const UpcomingPayment = ({ onPaymentAdded, closeModal }) => {
         >
           {loading ? "Adding..." : "+ Add Payment"}
         </button>
-
-        {/* ✅ Success Message */}
-        {successMessage && (
-          <p className="text-green-500 mt-2 text-center">{successMessage}</p>
-        )}
-
-        {/* ✅ Error Message */}
-        {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
       </form>
     </div>
   );

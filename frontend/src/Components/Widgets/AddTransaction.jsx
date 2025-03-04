@@ -1,6 +1,8 @@
 import { useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useBalanceStore } from "../../stores/balance.store";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const AddTransaction = () => {
   const [transaction, setTransaction] = useState({
@@ -10,8 +12,10 @@ const AddTransaction = () => {
     type: "income",
     category: "work",
   });
-
-  const [notification, setNotification] = useState({ message: "", type: "" });
+  
+  // ✅ Add state for validation errors
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addIncome = useBalanceStore((state) => state.addIncome);
   const addExpenses = useBalanceStore((state) => state.addExpenses);
@@ -19,17 +23,30 @@ const AddTransaction = () => {
   const setMonthlyStats = useBalanceStore((state) => state.setMonthlyStats);
 
   const handleChanges = (e) => {
+    const { name, value } = e.target;
+    
+    // ✅ Clear error when field is edited
+    if (errors[name]) {
+      setErrors({
+        ...errors,
+        [name]: null
+      });
+    }
+    
     setTransaction({
       ...transaction,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
   };
 
   const sendTransaction = async () => {
     try {
+      setIsSubmitting(true);
+      setErrors({});
+      
       const { data } = await axiosInstance.post("/transactions", transaction, { withCredentials: true });
 
-      const { amount, type, date } = data.newTransaction;
+      const { amount, type, date } = data.transaction; // ✅ Updated to match your backend response
 
       // ✅ Instant UI Update
       if (type === "income") {
@@ -56,8 +73,6 @@ const AddTransaction = () => {
         return newStats;
       });
 
-      setNotification({ message: "Transaction added successfully", type: "success" });
-
       // ✅ Fetch latest stats from backend after transaction (Ensures accuracy)
       await fetchTransactionStats();
 
@@ -70,84 +85,101 @@ const AddTransaction = () => {
         category: "work",
       });
 
-      setTimeout(() => setNotification({ message: "", type: "" }), 3000);
+      toast.success("Transaction added successfully!", { autoClose: 3000 });
     } catch (error) {
       console.error("❌ Error adding transaction:", error);
-      setNotification({ message: "Error adding transaction", type: "error" });
+      
+      // ✅ Handle validation errors
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+        
+        // Show first error message as toast
+        const firstErrorField = Object.keys(error.response.data.errors)[0];
+        const firstErrorMessage = error.response.data.errors[firstErrorField];
+        toast.error(firstErrorMessage, { autoClose: 5000 });
+      } else {
+        toast.error(error.response?.data?.message || "Failed to add transaction", { autoClose: 3000 });
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div>
       <div className="flex flex-col space-y-4 mb-6">
-        <input
-          type="text"
-          placeholder="Title"
-          value={transaction.title}
-          name="title"
-          onChange={handleChanges}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm"
-        />
-        <input
-          type="number"
-          placeholder="Amount"
-          value={transaction.amount}
-          name="amount"
-          onChange={handleChanges}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm"
-        />
-        <input
-          type="date"
-          placeholder="Date"
-          value={transaction.date}
-          name="date"
-          onChange={handleChanges}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm"
-        />
-        <select
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm"
-          value={transaction.type}
-          name="type"
-          onChange={handleChanges}
-        >
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-        </select>
+        <div>
+          <input
+            type="text"
+            placeholder="Title"
+            value={transaction.title}
+            name="title"
+            onChange={handleChanges}
+            className={'px-4 py-2 border border-gray-300 rounded-md shadow-sm w-full'}
+          />
+        </div>
+        
+        <div>
+          <input
+            type="number"
+            placeholder="Amount"
+            value={transaction.amount}
+            name="amount"
+            onChange={handleChanges}
+            className={'px-4 py-2 border border-gray-300 rounded-md shadow-sm w-full'}
+          />
+        </div>
+        
+        <div>
+          <input
+            type="date"
+            placeholder="Date"
+            value={transaction.date}
+            name="date"
+            onChange={handleChanges}
+            className={`px-4 py-2 border border-gray-300'} rounded-md shadow-sm w-full`}
+          />
+        </div>
+        
+        <div>
+          <select
+            className={`px-4 py-2 border border-gray-300'} rounded-md shadow-sm w-full`}
+            value={transaction.type}
+            name="type"
+            onChange={handleChanges}
+          >
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+        </div>
 
-        <select
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm"
-          value={transaction.category}
-          name="category"
-          onChange={handleChanges}
-        >
-          <option value="work">Work</option>
-          <option value="grocery">Grocery</option>
-          <option value="entertainment">Entertainment</option>
-          <option value="transport">Transport</option>
-          <option value="health">Health</option>
-          <option value="education">Education</option>
-          <option value="other">Other</option>
-        </select>
+        <div>
+          <select
+            className={`px-4 py-2 border border-gray-300'} rounded-md shadow-sm w-full`}
+            value={transaction.category}
+            name="category"
+            onChange={handleChanges}
+          >
+            <option value="work">Work</option>
+            <option value="grocery">Grocery</option>
+            <option value="entertainment">Entertainment</option>
+            <option value="transport">Transport</option>
+            <option value="health">Health</option>
+            <option value="education">Education</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
       </div>
 
       <div>
         <button
-          className="px-4 py-2 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 w-full sm:w-auto"
+          className={`px-4 py-2 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 w-full sm:w-auto ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
           onClick={sendTransaction}
+          disabled={isSubmitting}
         >
-          Add Transaction
+          {isSubmitting ? 'Adding...' : 'Add Transaction'}
         </button>
       </div>
-
-      {notification.message && (
-        <div
-          className={`p-4 mt-4 rounded ${
-            notification.type === "success" ? "text-green-800 bg-green-200" : "text-red-800 bg-red-200"
-          }`}
-        >
-          {notification.message}
-        </div>
-      )}
     </div>
   );
 };

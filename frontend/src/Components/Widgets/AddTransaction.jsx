@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useBalanceStore } from "../../stores/balance.store";
-import { toast, ToastContainer } from "react-toastify";
+import { toast} from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const AddTransaction = () => {

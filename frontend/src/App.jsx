@@ -17,7 +17,7 @@ function MainApp() {
     <div className="w-full flex">
       <Sidebar onSectionChange={handleSectionChange} />
       <main className="grow">
-        {activeSection === "Dashboard" && <Dashboard />}
+        {activeSection === "Dashboard" && <Dashboard onSectionChange={handleSectionChange}/>}
         {activeSection === "Transactions" && <TransactionBar onSectionChange={handleSectionChange} />}
         {activeSection === "Account" && <ProfileBoard />}
       </main>
@@ -31,7 +31,6 @@ function App() {
       <Routes>
         <Route path="/" element={<WelcomePage />} />
         <Route path="/app" element={<MainApp />} />
-        <Route path="*" element={<Navigate to="/" replace />} /> {/* Redirect unknown routes to WelcomePage */}
       </Routes>
     </Router>
   );

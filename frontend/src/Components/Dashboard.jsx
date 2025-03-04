@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AddTransaction from "./Widgets/AddTransaction";
 import UpcomingPayment from "./Widgets/UpcomingPayment";
 import Modal from "./Widgets/Modal";
@@ -9,7 +9,7 @@ import { IoMdWallet, IoMdPerson, IoMdBasket, IoMdCheckmark, IoMdCalendar } from 
 import { useBalanceStore } from "../stores/balance.store";
 import { toast, ToastContainer } from "react-toastify";
 
-// ✅ Reusable Card Component
+// Reusable Card Component
 const Card = ({ title, icon: Icon, value, bgColor }) => (
   <div className={`flex flex-col items-start p-5 rounded-lg shadow-md ${bgColor} text-white`}>
     <div className="flex items-center space-x-4">
@@ -22,60 +22,113 @@ const Card = ({ title, icon: Icon, value, bgColor }) => (
   </div>
 );
 
-export default function Dashboard() {
+export default function Dashboard({ onSectionChange }) {
   const [modalType, setModalType] = useState(null);
   const [user, setUser] = useState(null);
-  const [upcomingPayments, setUpcomingPayments] = useState([]); // ✅ Store upcoming payments
+  const [upcomingPayments, setUpcomingPayments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-  // ✅ Zustand State
+  // Zustand State
   const income = useBalanceStore((state) => state.income);
   const expenses = useBalanceStore((state) => state.expenses);
   const fetchTransactionStats = useBalanceStore((state) => state.fetchTransactionStats);
   const monthlyStats = useBalanceStore((state) => state.monthlyStats);
   
-
-  // ✅ Balance Calculation
+  // Balance Calculation
   const balance = income - expenses;
 
-  // ✅ Fetch user & transaction stats on mount
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await axiosInstance.get("/auth/current", { withCredentials: true });
-        setUser(response.data.user);
-      } catch (error) {
-        setUser(null);
-      }
-    };
+  const handleLoginRedirect = () => {
+    onSectionChange("Account");
+  };
 
-    const fetchUpcomingPayments = async () => {
-      try {
-        const response = await axiosInstance.get("/payments", { withCredentials: true });
-
-        const unpaidPayments = response.data.filter(payment => payment.status !== "paid");
-        setUpcomingPayments(response.data); // ✅ Store payments in state
-      } catch (error) {
-        console.error("❌ Error fetching upcoming payments:", error);
-      }
-    };
-
-    fetchUserData();
-    fetchTransactionStats();
-    fetchUpcomingPayments(); // ✅ Fetch payments
+  // Check authentication status
+  const checkAuth = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await axiosInstance.get("/auth/current", { withCredentials: true });
+      setUser(response.data.user);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Authentication check failed:", error.response?.data?.message || error.message);
+      setUser(null);
+      setIsAuthenticated(false);
+      // Toast removed to avoid showing on initial load
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // ✅ Mark Payment as Paid
+  // Fetch user & transaction stats on mount
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  // Fetch transaction data when authentication status changes
+  useEffect(() => {
+    const fetchData = async () => {
+      if (isAuthenticated) {
+        try {
+          await fetchTransactionStats();
+          
+          const paymentResponse = await axiosInstance.get("/payments", { withCredentials: true });
+          setUpcomingPayments(paymentResponse.data);
+        } catch (error) {
+          console.error("❌ Error fetching data:", error.response?.data?.message || error.message);
+          toast.error("Failed to load transaction data");
+        }
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated, fetchTransactionStats]);
+
+  // Mark Payment as Paid
   const markPaymentAsPaid = async (id) => {
     try {
       await axiosInstance.delete(`/payments/${id}`, { withCredentials: true });
-  
+      
       setUpcomingPayments((prevPayments) =>
         prevPayments.filter((payment) => payment._id !== id)
       );
+      
+      toast.success("Payment marked as paid");
     } catch (error) {
-      console.error("❌ Error marking payment as paid:", error);
+      console.error("❌ Error marking payment as paid:", error.response?.data?.message || error.message);
+      toast.error("Failed to update payment status");
     }
   };
+
+  // If loading, show loading indicator
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, show login prompt
+  if (isAuthenticated === false) {
+    return (
+      <div className="flex flex-col items-center justify-center h-40 gap-5 bg-white shadow-lg rounded-lg p-6 border border-gray-200">
+        <p className="text-gray-700 text-center font-semibold text-lg">
+          Please log in to access your transactions.
+        </p>
+        <button
+          onClick={handleLoginRedirect}
+          className="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200"
+        >
+          Log In
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-8">
@@ -142,48 +195,47 @@ export default function Dashboard() {
 
       {/* Upcoming Payments Section */}
       <div className="bg-white rounded-lg shadow-md p-6">
-      {/* Section Title */}
-      <h2 className="text-lg sm:text-xl font-medium text-[#0F172A] mb-4">Upcoming Payments</h2>
+        <h2 className="text-lg sm:text-xl font-medium text-[#0F172A] mb-4">Upcoming Payments</h2>
 
-      {upcomingPayments.length > 0 ? (
-        <ul className="space-y-4">
-          {upcomingPayments.map((payment) => (
-            <li
-              key={payment._id}
-              className="flex flex-col md:flex-row items-center justify-between p-4 bg-gray-100 rounded-lg shadow-sm"
-            >
-              {/* Left Side: Date & Title */}
-              <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-4 w-full md:w-auto">
-                {/* Date with Calendar Icon */}
-                <div className="flex items-center space-x-2 text-gray-600 text-sm">
-                  <IoMdCalendar size={18} />
-                  <span>{new Date(payment.dueDate).toDateString()}</span>
+        {upcomingPayments.length > 0 ? (
+          <ul className="space-y-4">
+            {upcomingPayments.map((payment) => (
+              <li
+                key={payment._id}
+                className="flex flex-col md:flex-row items-center justify-between p-4 bg-gray-100 rounded-lg shadow-sm"
+              >
+                {/* Left Side: Date & Title */}
+                <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-4 w-full md:w-auto">
+                  {/* Date with Calendar Icon */}
+                  <div className="flex items-center space-x-2 text-gray-600 text-sm">
+                    <IoMdCalendar size={18} />
+                    <span>{new Date(payment.dueDate).toDateString()}</span>
+                  </div>
+
+                  {/* Payment Title */}
+                  <span className="text-gray-900 font-medium truncate">{payment.title}</span>
                 </div>
 
-                {/* Payment Title */}
-                <span className="text-gray-900 font-medium truncate">{payment.title}</span>
-              </div>
+                {/* Right Side: Amount & Button */}
+                <div className="mt-2 md:mt-0 flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end">
+                  {/* Amount */}
+                  <span className="text-red-500 font-semibold">Rp. {payment.amount.toLocaleString("id-ID")}</span>
 
-              {/* Right Side: Amount & Button */}
-              <div className="mt-2 md:mt-0 flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end">
-                {/* Amount */}
-                <span className="text-red-500 font-semibold">Rp. {payment.amount.toLocaleString("id-ID")}</span>
-
-                {/* Paid Button */}
-                <button
-                  className="px-3 py-1 bg-green-500 text-white rounded-md shadow hover:bg-green-600 transition-all flex items-center space-x-1"
-                  onClick={() => markPaymentAsPaid(payment._id)}
-                >
-                  <IoMdCheckmark size={18} />
-                  <span>Paid</span>
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-gray-500">No upcoming payments</p>
-      )}
+                  {/* Paid Button */}
+                  <button
+                    className="px-3 py-1 bg-green-500 text-white rounded-md shadow hover:bg-green-600 transition-all flex items-center space-x-1"
+                    onClick={() => markPaymentAsPaid(payment._id)}
+                  >
+                    <IoMdCheckmark size={18} />
+                    <span>Paid</span>
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500">No upcoming payments</p>
+        )}
       </div>
 
       {/* Global Modals */}
@@ -192,7 +244,7 @@ export default function Dashboard() {
       </Modal>
 
       <Modal isOpen={modalType === "upcoming"} onClose={() => setModalType(null)} title="Add Upcoming Payment">
-          {modalType === "upcoming" && <UpcomingPayment />}
+        {modalType === "upcoming" && <UpcomingPayment />}
       </Modal>
     </div>
   );

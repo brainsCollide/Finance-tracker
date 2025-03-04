@@ -11,9 +11,18 @@ const ProfileBoard = () => {
   const [isSignUp, setIsSignUp] = useState(true);
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [userData, setUserData] = useState(null); // Stores user data
+  const [userData, setUserData] = useState(null);
+  
+  // ✅ Modified password validation state
+  const [passwordValidation, setPasswordValidation] = useState({
+    minLength: false,
+    allLowercase: false,  // ✅ Changed from hasLowercase to allLowercase
+    hasNumber: false,
+    hasSpecialChar: false
+  });
+  
+  const [passwordTouched, setPasswordTouched] = useState(false);
 
-  // ✅ Check authentication status on component mount
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
@@ -26,28 +35,56 @@ const ProfileBoard = () => {
     checkAuthStatus();
   }, []);
 
+  // ✅ Modified validation function to check for all lowercase
+  const validatePassword = (password) => {
+    return {
+      minLength: password.length >= 6,
+      allLowercase: /^[a-z]*$/.test(password), // ✅ Tests if password contains ONLY lowercase letters
+    };
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
+    
+    if (name === 'password') {
+      setPasswordValidation(validatePassword(value));
+      if (!passwordTouched) setPasswordTouched(true);
+    }
+  };
+  
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
+  
+  const isFormValid = () => {
+    if (isSignUp) {
+      return form.username && form.email && form.password && isPasswordValid;
+    }
+    return form.email && form.password;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage({ text: "", type: "" });
+    
+    if (isSignUp && !isPasswordValid) {
+      setMessage({ 
+        text: "Password does not meet all requirements.", 
+        type: "error" 
+      });
+      return;
+    }
 
     try {
       if (isSignUp) {
         const signUpResponse = await axiosInstance.post("/auth/signup", form);
         setMessage({ text: "Account created successfully!", type: "success" });
 
-        // ✅ Step 2: Automatically log in after successful sign-up
         const signInResponse = await axiosInstance.post(
           "/auth/signin",
           { email: form.email, password: form.password },
           { withCredentials: true }
         );
 
-        // ✅ Step 3: Fetch user data
         const userResponse = await axiosInstance.get("/auth/current", { withCredentials: true });
         setUserData(userResponse.data.user);
       } else {
@@ -58,7 +95,6 @@ const ProfileBoard = () => {
 
         setMessage({ text: response.data.message, type: "success" });
 
-        // Fetch user after sign-in
         const userResponse = await axiosInstance.get("/auth/current", { withCredentials: true });
         setUserData(userResponse.data.user);
       }
@@ -70,7 +106,6 @@ const ProfileBoard = () => {
     }
   };
 
-  // ✅ If the user is authenticated, show ProfilePage
   if (userData) {
     return <ProfilePage user={userData} onLogout={() => setUserData(null)} />;
   }
@@ -116,7 +151,8 @@ const ProfileBoard = () => {
               name="password"
               value={form.password}
               onChange={handleInputChange}
-              className="w-full p-3 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-12"
+              className={`w-full p-3 border rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-12 
+                ${isSignUp && passwordTouched && !isPasswordValid ? 'border-red-300' : ''}`}
               required
             />
             <button
@@ -127,10 +163,30 @@ const ProfileBoard = () => {
               {showPassword ? "Hide" : "Show"}
             </button>
           </div>
+          
+          {/* ✅ Modified password requirements display */}
+          {isSignUp && passwordTouched && (
+            <div className="text-sm space-y-1 mt-2 bg-gray-50 p-3 rounded-md">
+              <h4 className="font-medium text-gray-700">Password Requirements:</h4>
+              <ul className="space-y-1 pl-5">
+                <li className={passwordValidation.minLength ? "text-green-600" : "text-red-500"}>
+                  {passwordValidation.minLength ? "✓" : "✗"} At least 6 characters
+                </li>
+                <li className={passwordValidation.allLowercase ? "text-green-600" : "text-red-500"}>
+                  {passwordValidation.allLowercase ? "✓" : "✗"} Must contain only lowercase letters
+                </li>
+              </ul>
+            </div>
+          )}
 
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-3 rounded-lg shadow-lg hover:bg-blue-600 transition"
+            className={`w-full py-3 rounded-lg shadow-lg transition ${
+              isSignUp && !isFormValid() 
+                ? 'bg-blue-300 cursor-not-allowed' 
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+            disabled={isSignUp && !isFormValid()}
           >
             {isSignUp ? "Sign Up" : "Sign In"}
           </button>
@@ -141,7 +197,10 @@ const ProfileBoard = () => {
             <>
               Already have an account?{" "}
               <button
-                onClick={() => setIsSignUp(false)}
+                onClick={() => {
+                  setIsSignUp(false);
+                  setPasswordTouched(false);
+                }}
                 className="text-blue-500 hover:underline"
               >
                 Sign In
@@ -149,7 +208,7 @@ const ProfileBoard = () => {
             </>
           ) : (
             <>
-              Don’t have an account?{" "}
+              Don't have an account?{" "}
               <button
                 onClick={() => setIsSignUp(true)}
                 className="text-blue-500 hover:underline"

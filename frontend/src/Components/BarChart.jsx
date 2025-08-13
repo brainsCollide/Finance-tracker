@@ -42,26 +42,27 @@ export default function BarChartComponent({ monthlyStats }) {
       {
         label: "Expenses",
         data: expenses,
-        backgroundColor: "rgba(239, 68, 68, 0.9)", // ✅ Red
-        borderColor: "rgba(239, 68, 68, 1)", // 🔥 Add border for better visibility
+        backgroundColor: "rgba(239, 68, 68, 0.9)", 
+        borderColor: "rgba(239, 68, 68, 1)", 
         borderWidth: 2,
         borderRadius: 5,
-        barThickness: windowWidth < 768 ? 16 : 32, // ✅ Adjust for responsiveness
-        categoryPercentage: 0.6, // ✅ Adjust width of bars in a category
-        barPercentage: 0.9, // ✅ Prevent bars from colliding
+        barThickness: "flex", // Let Chart.js adjust it
+        categoryPercentage: 0.9, // Reduce width per category
+        barPercentage: 1.0, // Ensure bars fit well without overlap
       },
       {
         label: "Income",
         data: income,
-        backgroundColor: "rgba(22, 163, 74, 0.9)", // ✅ Green
-        borderColor: "rgba(22, 163, 74, 1)", // 🔥 Add border
+        backgroundColor: "rgba(22, 163, 74, 0.9)", 
+        borderColor: "rgba(22, 163, 74, 1)", 
         borderWidth: 2,
         borderRadius: 5,
-        barThickness: windowWidth < 768 ? 16 : 32,
-        categoryPercentage: 0.6,
-        barPercentage: 0.9,
+        barThickness: "flex",
+        categoryPercentage: 0.9,
+        barPercentage: 1.0,
       },
     ],
+    
   };
 
   const options = {

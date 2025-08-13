@@ -4,7 +4,7 @@ import { useBalanceStore } from "../../stores/balance.store";
 import { toast} from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const AddTransaction = () => {
+const AddTransaction = ( {closeModal} ) => {
   const [transaction, setTransaction] = useState({
     title: "",
     amount: "",
@@ -86,6 +86,10 @@ const AddTransaction = () => {
       });
 
       toast.success("Transaction added successfully!", { autoClose: 3000 });
+      
+      setTimeout(() => {
+        closeModal?.();
+      }, 1500);
     } catch (error) {
       console.error("❌ Error adding transaction:", error);
       
@@ -173,6 +177,7 @@ const AddTransaction = () => {
 
       <div>
         <button
+          type="submit"
           className={`px-4 py-2 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 w-full sm:w-auto ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
           onClick={sendTransaction}
           disabled={isSubmitting}

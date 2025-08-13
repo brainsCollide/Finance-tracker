@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import AddTransaction from "./Widgets/AddTransaction";
 import UpcomingPayment from "./Widgets/UpcomingPayment";
 import Modal from "./Widgets/Modal";
+import AuthPrompt from "./Widgets/AuthPrompt";
 import BarChart from "./BarChart";
 import DoughnutChart from "./DoughnutChart";
 import axiosInstance from "../api/axiosInstance";
@@ -115,20 +116,14 @@ export default function Dashboard({ onSectionChange }) {
 
   // If not authenticated, show login prompt
   if (isAuthenticated === false) {
-    return (
-      <div className="flex flex-col items-center justify-center h-40 gap-5 bg-white shadow-lg rounded-lg p-6 border border-gray-200">
-        <p className="text-gray-700 text-center font-semibold text-lg">
-          Please log in to access your transactions.
-        </p>
-        <button
-          onClick={handleLoginRedirect}
-          className="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200"
-        >
-          Log In
-        </button>
-      </div>
-    );
-  }
+  return (
+    <AuthPrompt
+      message="Please log in to access your transactions."
+      onLogin={handleLoginRedirect}
+      icon={IoMdPerson}
+    />
+  );
+}
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-8">

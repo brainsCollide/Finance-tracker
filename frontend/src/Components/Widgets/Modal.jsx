@@ -34,6 +34,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
                 {/* Close Button */}
                 <button
+                    type="close"
                     className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
                     onClick={onClose}
                 >

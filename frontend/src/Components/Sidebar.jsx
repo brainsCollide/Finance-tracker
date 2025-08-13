@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // ✅ Import Framer Motion
+import { motion, AnimatePresence } from "framer-motion";
 import T from "../assets/letter-t.svg";
 import {
   LayoutDashboard,
@@ -8,33 +8,45 @@ import {
   MoveRight,
   MoveLeft,
   Menu,
-  X
+  X,
+  TrendingUp,
+  Tag,
+  Repeat,
+  Award,
+  DownloadCloud,
+  Settings
 } from "lucide-react";
+
 
 const navLinks = [
   { id: 1, title: "Dashboard", icon: LayoutDashboard, path: "/Dashboard" },
   { id: 2, title: "Account", icon: CircleUserRound, path: "/Account" },
-  { id: 3, title: "Transactions", icon: ArrowRightLeft, path: "/TransactionBar" }
+  { id: 3, title: "Transactions", icon: ArrowRightLeft, path: "/TransactionBar" },
+  { id: 4, title: "Budgets", icon: TrendingUp, path: "/budgets" },
+  { id: 5, title: "Categories", icon: Tag, path: "/categories" },
+  { id: 6, title: "Recurring", icon: Repeat, path: "/recurring" },
+  { id: 7, title: "Goals", icon: Award, path: "/goals" },
+  { id: 8, title: "Export", icon: DownloadCloud, path: "/export" },
+  { id: 0, title: "Settings", icon: Settings, path: "/settings" },
 ];
-
 function Sidebar({ onSectionChange }) {
   const [activeNavBar, setActiveNavBar] = useState(1);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile); // Fully hidden on mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
 
-  // ✅ Detect screen size and update mobile state
+  // Detect mobile on resize
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setIsSidebarOpen(!mobile); // Auto-hide on mobile
+      setIsSidebarOpen(!mobile);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ✅ Update active nav item based on URL
+  // Update active nav based on URL
   useEffect(() => {
     const currentNav = navLinks.find((link) => link.path === window.location.pathname);
     if (currentNav) setActiveNavBar(currentNav.id);
@@ -43,12 +55,12 @@ function Sidebar({ onSectionChange }) {
   const handleNavClick = (item) => {
     setActiveNavBar(item.id);
     onSectionChange(item.title);
-    if (isMobile) setIsSidebarOpen(false); // ✅ Auto-close on mobile
+    if (isMobile) setIsSidebarOpen(false);
   };
 
   return (
     <>
-      {/* ✅ Mobile Menu Button */}
+      {/* Mobile Menu Button */}
       {isMobile && (
         <button
           className="fixed top-4 left-4 z-50 bg-gray-800 p-2 rounded-md"
@@ -58,19 +70,31 @@ function Sidebar({ onSectionChange }) {
         </button>
       )}
 
-      {/* ✅ Animated Sidebar (Works for Both Desktop & Mobile) */}
+      {/* Sidebar */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
             key="sidebar"
-            initial={{ x: isMobile ? "-100%" : 0, width: isMobile ? 0 : 80, opacity: 0 }}
-            animate={{ x: 0, width: isMobile ? "75%" : isExpanded ? 256 : 80, opacity: 1 }}
-            exit={{ x: isMobile ? "-100%" : 0, width: isMobile ? 0 : 80, opacity: 0 }}
+            initial={{
+              x: isMobile ? "-100%" : 0,
+              width: isMobile ? 0 : 80,
+              opacity: 0
+            }}
+            animate={{
+              x: 0,
+              width: isMobile ? "75%" : isExpanded ? 256 : 80,
+              opacity: 1
+            }}
+            exit={{
+              x: isMobile ? "-100%" : 0,
+              width: isMobile ? 0 : 80,
+              opacity: 0
+            }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
             className="fixed md:relative bg-gray-800 text-white flex flex-col shadow-lg z-50"
             style={{ minHeight: "100vh" }}
           >
-            {/* ✅ Close Button for Mobile */}
+            {/* Close Button Mobile */}
             {isMobile && (
               <button
                 className="absolute top-4 right-4 p-2"
@@ -80,26 +104,32 @@ function Sidebar({ onSectionChange }) {
               </button>
             )}
 
-            {/* ✅ Logo Section */}
-            <div
-              className={`flex items-center px-5 py-6 ${
-                isExpanded ? "justify-start space-x-4" : "justify-center"
-              } transition-all duration-300`}
-            >
-              <img src={T} alt="Logo" className="w-10 h-10 bg-rose-500 p-2 rounded-full" />
-              {isExpanded && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-xl font-bold tracking-wide"
-                >
-                  Tracker
-                </motion.span>
-              )}
+            {/* Logo Section (always left-aligned) */}
+            <div className="flex items-center px-5 py-6 justify-start space-x-4">
+              <img
+                src={T}
+                alt="Logo"
+                className="w-10 h-10 bg-rose-500 p-2 rounded-full"
+              />
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.span
+                    key="logo-text"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-xl font-bold tracking-wide select-none"
+                  >
+                    Tracker
+                  </motion.span>
+                  
+                )}
+              </AnimatePresence>
+              
             </div>
 
-            {/* ✅ Expand/Collapse Button for Desktop */}
+            {/* Collapse/Expand Button Desktop */}
             {!isMobile && (
               <motion.button
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -111,21 +141,34 @@ function Sidebar({ onSectionChange }) {
               </motion.button>
             )}
 
-            {/* ✅ Navigation Links */}
-            <div className="mt-10 space-y-2 px-2">
+            {/* Navigation Links */}
+            <div className="mt-10 space-y-2 px-3">
               {navLinks.map((item) => (
                 <motion.div
                   key={item.id}
                   onClick={() => handleNavClick(item)}
                   whileHover={{ scale: 1.05 }}
-                  className={`flex items-center ${
-                    isExpanded ? "justify-start space-x-4 px-4" : "justify-center"
-                  } py-3 rounded-md cursor-pointer transition-all duration-300 ${
-                    activeNavBar === item.id ? "bg-[#2563EB] text-white" : "hover:bg-gray-700 text-gray-300"
+                  className={`flex items-center px-4 py-3 rounded-md cursor-pointer transition-colors duration-200 ${
+                    activeNavBar === item.id
+                      ? "bg-[#2563EB] text-white"
+                      : "hover:bg-gray-700 text-gray-300"
                   }`}
                 >
-                  <item.icon size={24} />
-                  {isExpanded && <span className="text-sm font-medium">{item.title}</span>}
+                  <item.icon size={24} className="flex-shrink-0" />
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      opacity: isExpanded ? 1 : 0,
+                      marginLeft: isExpanded ? 16 : 0
+                    }}
+                    transition={{
+                      opacity: { duration: 0.15, ease: "linear" },
+                      marginLeft: { duration: 0.3, ease: "easeInOut" }
+                    }}
+                    className={`${!isExpanded && "pointer-events-none"} overflow-hidden whitespace-nowrap`}
+                  >
+                    {isExpanded && item.title}
+                  </motion.div>
                 </motion.div>
               ))}
             </div>
@@ -133,7 +176,7 @@ function Sidebar({ onSectionChange }) {
         )}
       </AnimatePresence>
 
-      {/* ✅ Clickable Backdrop for Mobile */}
+      {/* Backdrop Mobile */}
       {isMobile && isSidebarOpen && (
         <motion.div
           key="backdrop"

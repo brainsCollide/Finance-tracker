@@ -41,8 +41,7 @@ const UpcomingPayment = ({ onPaymentAdded, closeModal }) => {
 
       // ✅ Close modal after 1.5s
       setTimeout(() => {
-        setSuccessMessage("");
-        closeModal(); // Calls global modal close function
+        closeModal?.(); // Calls global modal close function
       }, 1500);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to add payment");

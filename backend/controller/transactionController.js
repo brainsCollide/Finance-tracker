@@ -1,6 +1,69 @@
 const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
+const Joi = require('joi');
+
+// ✅ Define Joi validation schemas
+const createTransactionSchema = Joi.object({
+  title: Joi.string().required().messages({
+    'string.empty': 'Title is required',
+    'any.required': 'Title is required'
+  }),
+  
+  amount: Joi.number().positive().required().messages({
+    'number.base': 'Amount must be a valid number',
+    'number.positive': 'Amount must be greater than 0',
+    'any.required': 'Amount is required'
+  }),
+  
+  type: Joi.string().valid('income', 'expense').required().messages({
+    'string.empty': 'Transaction type is required',
+    'any.only': 'Type must be either "income" or "expense"',
+    'any.required': 'Transaction type is required'
+  }),
+  
+  category: Joi.string()
+    .valid('work', 'grocery', 'entertainment', 'transport', 'health', 'education', 'other')
+    .required()
+    .messages({
+      'string.empty': 'Category is required',
+      'any.only': 'Invalid category. Choose from: work, grocery, entertainment, transport, health, education, other',
+      'any.required': 'Category is required'
+    }),
+  
+  date: Joi.date().max('now').messages({
+    'date.base': 'Invalid date format',
+    'date.max': 'Date cannot be in the future'
+  })
+});
+
+const updateTransactionSchema = Joi.object({
+  title: Joi.string().messages({
+    'string.empty': 'Title cannot be empty'
+  }),
+  
+  amount: Joi.number().positive().messages({
+    'number.base': 'Amount must be a valid number',
+    'number.positive': 'Amount must be greater than 0'
+  }),
+  
+  type: Joi.string().valid('income', 'expense').messages({
+    'any.only': 'Type must be either "income" or "expense"'
+  }),
+  
+  category: Joi.string()
+    .valid('work', 'grocery', 'entertainment', 'transport', 'health', 'education', 'other')
+    .messages({
+      'any.only': 'Invalid category. Choose from: work, grocery, entertainment, transport, health, education, other'
+    }),
+  
+  date: Joi.date().max('now').messages({
+    'date.base': 'Invalid date format',
+    'date.max': 'Date cannot be in the future'
+  })
+}).min(1).messages({
+  'object.min': 'At least one field is required for update'
+});
 
 const getTransactionStats = async (req, res) => {
     try {
@@ -71,43 +134,56 @@ const getAllTransaction = async (req, res) => {
 // Add a new transaction (Only for logged-in user)
 const addATransaction = async (req, res, next) => {
     try {
-        const { title, amount, type, category, date } = req.body;
+        // ✅ Validate request body
+        const { error, value } = createTransactionSchema.validate(req.body, { 
+            abortEarly: false // ✅ This is important to collect all errors
+        });
+        
+        if (error) {
+            // ✅ Format errors by field for easier frontend handling
+            const errors = {};
+            error.details.forEach((detail) => {
+                errors[detail.path[0]] = detail.message;
+            });
+            
+            return res.status(400).json({ 
+                message: "Validation failed", 
+                errors: errors 
+            });
+        }
+
+        const { title, amount, type, category, date } = value; // Use validated data
         const userId = req.user.userId;
 
-        // ✅ Ensure type is valid
-        const validTypes = ["income", "expense"];
-        if (!validTypes.includes(type)) {
-            return res.status(400).json({ message: "Invalid type. Choose 'income' or 'expense'." });
-        }
-
-        // ✅ Ensure category is valid
-        const validCategories = ["work", "grocery", "entertainment", "transport", "health", "education", "other"];
-        if (!validCategories.includes(category)) {
-            return res.status(400).json({ message: "Invalid category. Choose from: " + validCategories.join(", ") });
-        }
-
-        const transactionDate = date ? new Date(date) : new Date();
-
+        // ✅ Create new transaction with validated data
         const newTransaction = new Transaction({
-            userId: req.user.userId,
+            userId,
             title,
             amount,
             type,
             category,
-            date: transactionDate, 
+            date: date || new Date(),
         });
 
+        // Update user document to reference this transaction
         await User.findByIdAndUpdate(
             userId,
-            { $push: { transactions: newTransaction._id } }, // ✅ Ensure transactions are stored
+            { $push: { transactions: newTransaction._id } },
             { new: true }
         );
 
         await newTransaction.save();
-        return res.status(201).json({ message: "Transaction added successfully", newTransaction });
+        
+        return res.status(201).json({ 
+            message: "Transaction added successfully", 
+            transaction: newTransaction 
+        });
     } catch (error) {
         console.error("Error adding transaction:", error.message);
-        next(error);
+        return res.status(500).json({ 
+            message: "Server error while adding transaction",
+            error: error.message
+        });
     }
 };
 
@@ -135,15 +211,33 @@ const editATransaction = async (req, res) => {
 // Update a transaction by ID (Only if it belongs to the logged-in user)
 const updateATransaction = async (req, res) => {
     try {
+        // ✅ Validate request body
+        const { error, value } = updateTransactionSchema.validate(req.body, { 
+            abortEarly: false 
+        });
+        
+        if (error) {
+            const errors = {};
+            error.details.forEach((detail) => {
+                errors[detail.path[0]] = detail.message;
+            });
+            
+            return res.status(400).json({ 
+                message: "Validation failed", 
+                errors: errors 
+            });
+        }
+
         const { id } = req.params;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Invalid ID format' });
         }
 
+        // ✅ Use validated data for update
         const updatedTransaction = await Transaction.findOneAndUpdate(
             { _id: id, userId: req.user.userId }, // Ensure user owns the transaction
-            { ...req.body, date: new Date() }, 
+            { ...value, date: value.date || new Date() }, 
             { new: true }
         );
 
@@ -151,7 +245,7 @@ const updateATransaction = async (req, res) => {
             return res.status(404).json({ message: 'Transaction not found or unauthorized' });
         }
 
-        res.json({ message: 'Transaction updated successfully', updatedTransaction });
+        res.json({ message: 'Transaction updated successfully', transaction: updatedTransaction });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -172,14 +266,17 @@ const deleteATransaction = async (req, res) => {
             return res.status(404).json({ message: 'Transaction not found or unauthorized' });
         }
 
-        res.json({ message: 'Transaction deleted successfully', deletedTransaction });
+        // ✅ Also remove reference from user document
+        await User.findByIdAndUpdate(
+            req.user.userId,
+            { $pull: { transactions: id } }
+        );
+
+        res.json({ message: 'Transaction deleted successfully', transaction: deletedTransaction });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
-
-// Get total income and expenses (Only for logged-in user)
-
 
 module.exports = {
     getAllTransaction,

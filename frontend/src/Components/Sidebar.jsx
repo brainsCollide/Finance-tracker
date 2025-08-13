@@ -25,10 +25,12 @@ const navLinks = [
   { id: 4, title: "Budgets", icon: TrendingUp, path: "/budgets" },
   { id: 5, title: "Categories", icon: Tag, path: "/categories" },
   { id: 6, title: "Recurring", icon: Repeat, path: "/recurring" },
-  { id: 7, title: "Goals", icon: Award, path: "/goals" },
+  { id: 7, title: "Goals", icon: Award, path: "/Goals" },
   { id: 8, title: "Export", icon: DownloadCloud, path: "/export" },
-  { id: 0, title: "Settings", icon: Settings, path: "/settings" },
+  { id: 9, title: "Settings", icon: Settings, path: "/settings" },
 ];
+
+
 function Sidebar({ onSectionChange }) {
   const [activeNavBar, setActiveNavBar] = useState(1);
   const [isExpanded, setIsExpanded] = useState(true);

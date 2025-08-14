@@ -6,6 +6,7 @@ import TransactionBar from './Components/TransactionBar';
 import ProfileBoard from './Components/ProfileBoard';
 import WelcomePage from './Components/WelcomePage';
 import Goals from './Components/Goals';
+import Budgets from './Components/Budgets';
 
 function MainApp() {
   const [activeSection, setActiveSection] = useState('Dashboard');
@@ -22,6 +23,7 @@ function MainApp() {
         {activeSection === "Transactions" && <TransactionBar onSectionChange={handleSectionChange} />}
         {activeSection === "Account" && <ProfileBoard />}
         {activeSection === "Goals" && <Goals />}
+        {activeSection === "Budgets" && <Budgets />}
         {/* Add more sections as needed */}
       </main>
     </div>

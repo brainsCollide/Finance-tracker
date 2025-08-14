@@ -5,7 +5,7 @@ import TransactionCard from "./TransactionCard";
 import useTransactions from "../hooks/useTransactions";
 import "react-toastify/dist/ReactToastify.css";
 
-// ------------------ Sub-components ------------------
+
 const Loading = () => (
   <div className="flex justify-center items-center h-40">
     <p className="text-gray-500 text-lg animate-pulse">Loading transactions...</p>
@@ -22,7 +22,7 @@ const ErrorMessage = ({ message }) => (
   <div className="text-red-500 text-center mb-4">{message}</div>
 );
 
-// ------------------ Main Component ------------------
+
 const TransactionBar = ({ onSectionChange }) => {
   const { transactions, loading, error, isAuthenticated, deleteTransaction } = useTransactions();
 

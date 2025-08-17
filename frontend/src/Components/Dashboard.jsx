@@ -39,62 +39,46 @@ export default function Dashboard({ onSectionChange }) {
   // Balance Calculation
   const balance = income - expenses;
 
-  const handleLoginRedirect = () => {
-    onSectionChange("Account");
-  };
+  const handleLoginRedirect = () => onSectionChange("Account");
 
-  // Check authentication status
-  const checkAuth = useCallback(async () => {
+  // Init Dashboard: auth + fetch stats & payments
+  const initDashboard = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await axiosInstance.get("/auth/current", { withCredentials: true });
-      setUser(response.data.user);
+
+      // 1️⃣ Check authentication
+      const authResponse = await axiosInstance.get("/auth/current", { withCredentials: true });
+      setUser(authResponse.data.user);
       setIsAuthenticated(true);
+
+      // 2️⃣ Fetch stats + payments in parallel
+      const [statsResponse, paymentsResponse] = await Promise.all([
+        fetchTransactionStats(),
+        axiosInstance.get("/payments", { withCredentials: true })
+      ]);
+
+      setUpcomingPayments(paymentsResponse.data);
     } catch (error) {
-      console.error("Authentication check failed:", error.response?.data?.message || error.message);
+      console.error("❌ Dashboard initialization failed:", error.response?.data?.message || error.message);
       setUser(null);
       setIsAuthenticated(false);
-      // Toast removed to avoid showing on initial load
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchTransactionStats]);
 
-  // Fetch user & transaction stats on mount
+  // Call on mount
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  // Fetch transaction data when authentication status changes
-  useEffect(() => {
-    const fetchData = async () => {
-      if (isAuthenticated) {
-        try {
-          await fetchTransactionStats();
-          
-          const paymentResponse = await axiosInstance.get("/payments", { withCredentials: true });
-          setUpcomingPayments(paymentResponse.data);
-        } catch (error) {
-          console.error("❌ Error fetching data:", error.response?.data?.message || error.message);
-          toast.error("Failed to load transaction data");
-        }
-      }
-    };
-
-    if (isAuthenticated) {
-      fetchData();
-    }
-  }, [isAuthenticated, fetchTransactionStats]);
+    initDashboard();
+  }, [initDashboard]);
 
   // Mark Payment as Paid
   const markPaymentAsPaid = async (id) => {
     try {
       await axiosInstance.delete(`/payments/${id}`, { withCredentials: true });
-      
       setUpcomingPayments((prevPayments) =>
         prevPayments.filter((payment) => payment._id !== id)
       );
-      
       toast.success("Payment marked as paid");
     } catch (error) {
       console.error("❌ Error marking payment as paid:", error.response?.data?.message || error.message);
@@ -102,7 +86,7 @@ export default function Dashboard({ onSectionChange }) {
     }
   };
 
-  // If loading, show loading indicator
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
@@ -114,22 +98,21 @@ export default function Dashboard({ onSectionChange }) {
     );
   }
 
-  // If not authenticated, show login prompt
+  // Not authenticated
   if (isAuthenticated === false) {
-  return (
-    <AuthPrompt
-      message="Please log in to access your transactions."
-      onLogin={handleLoginRedirect}
-      icon={IoMdPerson}
-    />
-  );
-}
+    return (
+      <AuthPrompt
+        message="Please log in to access your transactions."
+        onLogin={handleLoginRedirect}
+        icon={IoMdPerson}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-8">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
-        {/* User Welcome Message */}
         <h1 className="text-xl sm:text-3xl font-bold text-[#0F172A] text-center sm:text-left">
           {user ? `Welcome back, ${user.username} 👋` : "Welcome Back 👋"}
         </h1> 
@@ -138,7 +121,7 @@ export default function Dashboard({ onSectionChange }) {
           position="top-right"
           autoClose={3000}
           hideProgressBar={false}
-          newestOnTop={true}
+          newestOnTop
           closeOnClick
           rtl={false}
           pauseOnFocusLoss
@@ -147,19 +130,15 @@ export default function Dashboard({ onSectionChange }) {
           theme="light"
           toastClassName="relative flex p-3 min-h-[64px] rounded-md justify-between overflow-hidden cursor-pointer bg-white shadow-md my-2 max-w-[60vw] md:max-w-[350px]"
           bodyClassName="text-sm font-medium text-gray-800 flex items-center"
-          icon={true}
+          icon
         />
-        {/* Action Buttons */}
         <div className="flex space-x-4">
-          {/* Add Transaction Button */}
           <button
             className="px-4 py-2 bg-[#2563EB] text-white rounded-md shadow hover:bg-[#1E40AF] transition-all w-full sm:w-auto"
             onClick={() => setModalType("transaction")}
           >
             + Add Transaction
           </button>
-
-          {/* Add Upcoming Payment Button */}
           <button
             className="px-4 py-2 bg-[#2563EB] text-white rounded-md shadow hover:bg-[#1E40AF] transition-all w-full sm:w-auto"
             onClick={() => setModalType("upcoming")}
@@ -195,28 +174,16 @@ export default function Dashboard({ onSectionChange }) {
         {upcomingPayments.length > 0 ? (
           <ul className="space-y-4">
             {upcomingPayments.map((payment) => (
-              <li
-                key={payment._id}
-                className="flex flex-col md:flex-row items-center justify-between p-4 bg-gray-100 rounded-lg shadow-sm"
-              >
-                {/* Left Side: Date & Title */}
+              <li key={payment._id} className="flex flex-col md:flex-row items-center justify-between p-4 bg-gray-100 rounded-lg shadow-sm">
                 <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-4 w-full md:w-auto">
-                  {/* Date with Calendar Icon */}
                   <div className="flex items-center space-x-2 text-gray-600 text-sm">
                     <IoMdCalendar size={18} />
                     <span>{new Date(payment.dueDate).toDateString()}</span>
                   </div>
-
-                  {/* Payment Title */}
                   <span className="text-gray-900 font-medium truncate">{payment.title}</span>
                 </div>
-
-                {/* Right Side: Amount & Button */}
                 <div className="mt-2 md:mt-0 flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end">
-                  {/* Amount */}
                   <span className="text-red-500 font-semibold">Rp. {payment.amount.toLocaleString("id-ID")}</span>
-
-                  {/* Paid Button */}
                   <button
                     className="px-3 py-1 bg-green-500 text-white rounded-md shadow hover:bg-green-600 transition-all flex items-center space-x-1"
                     onClick={() => markPaymentAsPaid(payment._id)}

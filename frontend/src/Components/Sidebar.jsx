@@ -23,11 +23,9 @@ const navLinks = [
   { id: 2, title: "Account", icon: CircleUserRound, path: "/Account" },
   { id: 3, title: "Transactions", icon: ArrowRightLeft, path: "/TransactionBar" },
   { id: 4, title: "Budgets", icon: TrendingUp, path: "/budgets" },
-  { id: 5, title: "Categories", icon: Tag, path: "/categories" },
   { id: 6, title: "Recurring", icon: Repeat, path: "/recurring" },
   { id: 7, title: "Goals", icon: Award, path: "/Goals" },
   { id: 8, title: "Export", icon: DownloadCloud, path: "/export" },
-  { id: 9, title: "Settings", icon: Settings, path: "/settings" },
 ];
 
 

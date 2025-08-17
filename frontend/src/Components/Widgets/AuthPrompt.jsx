@@ -1,5 +1,3 @@
-import React from "react";
-
 const AuthPrompt = ({ message, onLogin, icon: Icon }) => {
   return (
     <div className="h-screen flex flex-col items-center justify-center gap-5 bg-white shadow-lg rounded-lg p-6 border border-gray-200">

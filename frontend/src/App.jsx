@@ -7,6 +7,8 @@ import ProfileBoard from './Components/ProfileBoard';
 import WelcomePage from './Components/WelcomePage';
 import Goals from './Components/Goals';
 import Budgets from './Components/Budgets';
+import Export from './Components/Export';
+import Recurring from './Components/Recurring';
 
 function MainApp() {
   const [activeSection, setActiveSection] = useState('Dashboard');
@@ -24,6 +26,8 @@ function MainApp() {
         {activeSection === "Account" && <ProfileBoard />}
         {activeSection === "Goals" && <Goals />}
         {activeSection === "Budgets" && <Budgets />}
+        {activeSection === "Export" && <Export />}
+        {activeSection === "Recurring" && <Recurring />}
         {/* Add more sections as needed */}
       </main>
     </div>

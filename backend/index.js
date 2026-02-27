@@ -6,6 +6,7 @@ const userRoute = require('./routes/userRoute');
 const authRoute = require('./routes/authRoute');
 const transactionRoute = require('./routes/transactionRoutes');
 const upcomingPaymentRoute = require('./routes/paymentRoute');
+const budgetRoute = require('./routes/budgetRoutes'); // Import budget routes
 const connectDB = require('./config/db');
 
 const app = express();
@@ -21,7 +22,8 @@ app.use(cookieParser()); // ✅ Ensure cookies are parsed
 app.use(
     cors({
         origin: ["https://finance-tracker-nine-rosy.vercel.app",
-            "http://localhost:5173"
+            "http://localhost:5173",
+            "http://localhost:4173"
         ], // ✅ Replace with your frontend URL
         credentials: true, // ✅ Allows cookies & authentication headers
         methods: ["GET", "POST", "PUT", "DELETE"], // ✅ Explicitly allow methods
@@ -37,6 +39,7 @@ app.use('/transactions', transactionRoute);
 app.use('/payments', upcomingPaymentRoute);
 app.use('/auth', authRoute);
 app.use('/users', userRoute);
+app.use ('/budgets', budgetRoute);
 
 // ✅ Fix: Improved Error Handling Middleware
 app.use((err, req, res, next) => {

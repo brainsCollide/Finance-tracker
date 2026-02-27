@@ -1,34 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  Title,
   Tooltip,
   Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// Notice Title is removed since we use the parent container's <h2>
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 export default function BarChartComponent({ monthlyStats }) {
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-
-  // ✅ Update width on resize (Prevents errors)
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   if (!Array.isArray(monthlyStats) || monthlyStats.length === 0) {
-    return <p className="text-gray-500">No data available for this year.</p>;
+    return (
+      <div className="flex h-64 items-center justify-center text-gray-400">
+        No data available for this year.
+      </div>
+    );
   }
 
   const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // ✅ Ensure all months have values (Prevents undefined errors)
+  // Ensure all months have values
   const filledStats = Array.from({ length: 12 }, (_, index) =>
     monthlyStats[index] || { totalExpenses: 0, totalIncome: 0 }
   );
@@ -40,75 +35,88 @@ export default function BarChartComponent({ monthlyStats }) {
     labels,
     datasets: [
       {
-        label: "Expenses",
-        data: expenses,
-        backgroundColor: "rgba(239, 68, 68, 0.9)", 
-        borderColor: "rgba(239, 68, 68, 1)", 
-        borderWidth: 2,
-        borderRadius: 5,
-        barThickness: "flex", // Let Chart.js adjust it
-        categoryPercentage: 0.9, // Reduce width per category
-        barPercentage: 1.0, // Ensure bars fit well without overlap
-      },
-      {
         label: "Income",
         data: income,
-        backgroundColor: "rgba(22, 163, 74, 0.9)", 
-        borderColor: "rgba(22, 163, 74, 1)", 
-        borderWidth: 2,
-        borderRadius: 5,
-        barThickness: "flex",
-        categoryPercentage: 0.9,
-        barPercentage: 1.0,
+        backgroundColor: "#10B981", // Modern Emerald Green
+        borderRadius: 6, // Rounded pill-like tops
+        borderSkipped: false,
+        barPercentage: 0.6, // Slimmer bars
+        categoryPercentage: 0.8,
+      },
+      {
+        label: "Expenses",
+        data: expenses,
+        backgroundColor: "#F43F5E", // Modern Rose Red
+        borderRadius: 6,
+        borderSkipped: false,
+        barPercentage: 0.6,
+        categoryPercentage: 0.8,
       },
     ],
-    
   };
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      mode: "index",
+      intersect: false, // Tooltip shows both when hovering over a month
+    },
     plugins: {
       legend: {
-        position: windowWidth < 768 ? "bottom" : "top",
+        position: "top",
+        align: "end", // Pushes legend to the right
         labels: {
-          color: "#374151", // Tailwind Gray-700
-          font: { size: windowWidth < 768 ? 12 : 14 },
+          usePointStyle: true, // Uses modern circles instead of default boxes
+          boxWidth: 8,
+          boxHeight: 8,
+          color: "#64748B", // Slate-500
+          font: { size: 13, family: "Inter, sans-serif" },
+          padding: 20,
         },
       },
-      title: {
-        display: true,
-        text: "Income vs Expenses",
-        color: "#1F2937", // Tailwind Gray-800
-        font: { size: windowWidth < 768 ? 14 : 18, weight: "bold" },
-      },
       tooltip: {
+        backgroundColor: "#1E293B", // Dark sleek tooltip
+        padding: 12,
+        titleFont: { size: 14, family: "Inter, sans-serif", weight: "normal" },
+        bodyFont: { size: 13, family: "Inter, sans-serif", weight: "bold" },
+        usePointStyle: true,
         callbacks: {
-          label: (context) => `Rp. ${context.raw.toLocaleString("id-ID")}`,
+          label: (context) => ` Rp. ${context.raw.toLocaleString("id-ID")}`,
         },
       },
     },
     scales: {
       x: {
-        ticks: { color: "#6B7280", font: { size: windowWidth < 768 ? 10 : 12 } },
-        grid: { display: false },
+        grid: { display: false, drawBorder: false }, // Clean X-axis
+        ticks: { color: "#94A3B8", font: { family: "Inter, sans-serif" } },
       },
       y: {
-        ticks: {
-          color: "#6B7280",
-          font: { size: windowWidth < 768 ? 10 : 12 },
-          callback: (value) => `Rp. ${value.toLocaleString("id-ID")}`,
+        beginAtZero: true,
+        border: { display: false }, // Removes the solid Y-axis line
+        grid: {
+          color: "#F1F5F9", // Very faint grid line
+          drawTicks: false,
         },
-        grid: { color: "#E5E7EB" },
+        ticks: {
+          color: "#94A3B8",
+          font: { family: "Inter, sans-serif" },
+          padding: 10, // Gives breathing room to the labels
+          callback: (value) => {
+            // Shortens large numbers (e.g., 10,000,000 -> 10M) for a cleaner axis
+            if (value >= 1000000) return `Rp. ${(value / 1000000).toFixed(1)}M`;
+            if (value >= 1000) return `Rp. ${(value / 1000).toFixed(0)}K`;
+            return `Rp. ${value}`;
+          },
+        },
       },
     },
   };
 
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="w-[90vw] sm:w-full" style={{ height: windowWidth < 768 ? "250px" : "350px" }}>
-        <Bar options={options} data={data} />
-      </div>
+    // Tailwind handles the responsive height natively now
+    <div className="relative w-full h-[250px] md:h-[350px]">
+      <Bar options={options} data={data} />
     </div>
   );
 }

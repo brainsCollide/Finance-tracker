@@ -36,7 +36,18 @@ app.use(
 );
 
 // ✅ Ensure Cookies & Headers Are Sent in Every Response
-app.options("*", cors());
+app.options("*", cors({
+    origin: [
+        "http://localhost:5173",
+        "http://localhost:4173",
+        "https://finance-tracker-frontend-five-eta.vercel.app",
+        "https://finance-tracker-frontend-git-main-brainscollides-projects.vercel.app",
+        "https://finance-tracker-frontend-leokeco0r-brainscollides-projects.vercel.app"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
 // Routes
 app.use('/transactions', transactionRoute);

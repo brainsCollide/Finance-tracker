@@ -1,212 +1,518 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AddTransaction from "./Widgets/AddTransaction";
+import StatCard from "./props/StatCard";
 import UpcomingPayment from "./Widgets/UpcomingPayment";
 import Modal from "./Widgets/Modal";
-import AuthPrompt from "./Widgets/AuthPrompt";
-import BarChart from "./BarChart";
-import DoughnutChart from "./DoughnutChart";
+import BarChartComponent from "./BarChart";
+import DoughnutChartComponent from "./DoughnutChart";
 import axiosInstance from "../api/axiosInstance";
-import { IoMdWallet, IoMdPerson, IoMdBasket, IoMdCheckmark, IoMdCalendar } from "react-icons/io";
-import { useBalanceStore } from "../stores/balance.store";
-import { toast, ToastContainer } from "react-toastify";
+import {
+  IoMdCheckmark,
+} from "react-icons/io";
 
-// Reusable Card Component
-const Card = ({ title, icon: Icon, value, bgColor }) => (
-  <div className={`flex flex-col items-start p-5 rounded-lg shadow-md ${bgColor} text-white`}>
-    <div className="flex items-center space-x-4">
-      <Icon size={32} className="text-white" />
-      <h3 className="text-lg font-semibold">{title}</h3>
-    </div>
-    <div className="mt-3">
-      <h4 className="text-2xl font-bold">{value}</h4>
-    </div>
-  </div>
-);
+import {
+  FiTrendingUp,
+  FiTrendingDown,
+  FiPocket,
+  FiCalendar,
+  FiTarget,
+  FiChevronRight,
+  FiActivity,
+  FiCreditCard,
+  FiZap,
+} from "react-icons/fi";
+
+import { useBalanceStore } from "../stores/balance.store";
+import { usePaymentStore } from "../stores/payment.store";
+import { useBudgetStore } from "../stores/budget.store";
+import { toast, ToastContainer } from "react-toastify";
 
 export default function Dashboard({ onSectionChange }) {
   const [modalType, setModalType] = useState(null);
   const [user, setUser] = useState(null);
-  const [upcomingPayments, setUpcomingPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-  // Zustand State
-  const income = useBalanceStore((state) => state.income);
-  const expenses = useBalanceStore((state) => state.expenses);
-  const fetchTransactionStats = useBalanceStore((state) => state.fetchTransactionStats);
-  const monthlyStats = useBalanceStore((state) => state.monthlyStats);
-  
-  // Balance Calculation
+  // Zustand Stores
+  const {
+    income,
+    expenses,
+    monthlyStats,
+    fetchTransactionStats,
+  } = useBalanceStore();
+
+  const {
+    upcomingPayments,
+    fetchUpcomingPayments,
+    markAsPaid,
+  } = usePaymentStore();
+
+  const {
+    budgets,
+    fetchBudgets,
+  } = useBudgetStore();
+
   const balance = income - expenses;
 
-  const handleLoginRedirect = () => onSectionChange("Account");
-
-  // Init Dashboard: auth + fetch stats & payments
   const initDashboard = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      // 1️⃣ Check authentication
-      const authResponse = await axiosInstance.get("/auth/current", { withCredentials: true });
+      const authResponse = await axiosInstance.get("/auth/current", {
+        withCredentials: true,
+      });
+
       setUser(authResponse.data.user);
-      setIsAuthenticated(true);
 
-      // 2️⃣ Fetch stats + payments in parallel
-      const [statsResponse, paymentsResponse] = await Promise.all([
+      await Promise.all([
         fetchTransactionStats(),
-        axiosInstance.get("/payments", { withCredentials: true })
+        fetchUpcomingPayments(),
+        fetchBudgets(),
       ]);
-
-      setUpcomingPayments(paymentsResponse.data);
     } catch (error) {
-      console.error("❌ Dashboard initialization failed:", error.response?.data?.message || error.message);
-      setUser(null);
-      setIsAuthenticated(false);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchTransactionStats]);
+  }, [
+    fetchTransactionStats,
+    fetchUpcomingPayments,
+    fetchBudgets,
+  ]);
 
-  // Call on mount
   useEffect(() => {
     initDashboard();
   }, [initDashboard]);
 
-  // Mark Payment as Paid
-  const markPaymentAsPaid = async (id) => {
+  const handleMarkPaid = async (id, amount) => {
     try {
-      await axiosInstance.delete(`/payments/${id}`, { withCredentials: true });
-      setUpcomingPayments((prevPayments) =>
-        prevPayments.filter((payment) => payment._id !== id)
-      );
-      toast.success("Payment marked as paid");
-    } catch (error) {
-      console.error("❌ Error marking payment as paid:", error.response?.data?.message || error.message);
-      toast.error("Failed to update payment status");
+      await markAsPaid(id, amount);
+      toast.success("Pembayaran berhasil dibayar");
+    } catch {
+      toast.error("Gagal menandai pembayaran");
     }
   };
 
-  // Loading state
+  // --- DUMMY INSIGHTS ---
+  const savingsRate =
+    income > 0
+      ? Math.max(((balance / income) * 100).toFixed(0), 0)
+      : 0;
+
+  const monthlyBurn =
+    expenses > 0
+      ? Math.round(expenses / 30)
+      : 0;
+
+  const activeBudgets = budgets.length;
+
+  const recurringBills = upcomingPayments.length;
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          <p className="mt-4 text-slate-500 font-medium">
+            Syncing your financial data...
+          </p>
         </div>
       </div>
-    );
-  }
-
-  // Not authenticated
-  if (isAuthenticated === false) {
-    return (
-      <AuthPrompt
-        message="Please log in to access your transactions."
-        onLogin={handleLoginRedirect}
-        icon={IoMdPerson}
-      />
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-8">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-3xl font-bold text-[#0F172A] text-center sm:text-left">
-          {user ? `Welcome back, ${user.username} 👋` : "Welcome Back 👋"}
-        </h1> 
-        <ToastContainer
-          className="!font-sans"
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-          toastClassName="relative flex p-3 min-h-[64px] rounded-md justify-between overflow-hidden cursor-pointer bg-white shadow-md my-2 max-w-[60vw] md:max-w-[350px]"
-          bodyClassName="text-sm font-medium text-gray-800 flex items-center"
-          icon
-        />
-        <div className="flex space-x-4">
+    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-8 md:p-12">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        theme="light"
+      />
+
+      {/* --- HEADER --- */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 mb-10">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            <FiActivity />
+            Financial Overview
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight italic uppercase">
+            Dashboard <span className="text-blue-600">.</span>
+          </h1>
+
+          <p className="text-slate-500 font-medium">
+            Welcome back,{" "}
+            <span className="font-bold text-slate-800">
+              {user?.username || "Chief"}
+            </span>
+            ! Here's your financial overview today.
+          </p>
+        </div>
+
+        <div className="flex gap-3">
           <button
-            className="px-4 py-2 bg-[#2563EB] text-white rounded-md shadow hover:bg-[#1E40AF] transition-all w-full sm:w-auto"
             onClick={() => setModalType("transaction")}
+            className="flex-1 sm:flex-none px-6 py-3.5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all shadow-xl active:scale-95 text-sm"
           >
-            + Add Transaction
+            + Transaction
           </button>
+
           <button
-            className="px-4 py-2 bg-[#2563EB] text-white rounded-md shadow hover:bg-[#1E40AF] transition-all w-full sm:w-auto"
             onClick={() => setModalType("upcoming")}
+            className="flex-1 sm:flex-none px-6 py-3.5 bg-white text-slate-900 border border-slate-200 font-bold rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95 text-sm"
           >
-            + Add Payment
+            + Payment
           </button>
         </div>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
-        <Card title="Balance" icon={IoMdWallet} value={`Rp. ${balance.toLocaleString("id-ID")}`} bgColor="bg-gradient-to-r from-[#1E40AF] to-[#2563EB]" />
-        <Card title="Expenses" icon={IoMdBasket} value={`Rp. ${expenses.toLocaleString("id-ID")}`} bgColor="bg-gradient-to-r from-[#DC2626] to-[#EF4444]" />
-        <Card title="Income" icon={IoMdPerson} value={`Rp. ${income.toLocaleString("id-ID")}`} bgColor="bg-gradient-to-r from-[#059669] to-[#10B981]" />
+      {/* --- PRIMARY STATS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <StatCard
+          title="Income"
+          icon={FiTrendingUp}
+          value={`Rp ${income.toLocaleString("id-ID")}`}
+          accentColor="emerald"
+        />
+
+        <StatCard
+          title="Expenses"
+          icon={FiTrendingDown}
+          value={`Rp ${expenses.toLocaleString("id-ID")}`}
+          accentColor="rose"
+        />
+
+        <StatCard
+          title="Balance"
+          icon={FiPocket}
+          value={`Rp ${balance.toLocaleString("id-ID")}`}
+          accentColor="blue"
+        />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg sm:text-xl font-medium text-[#0F172A] mb-4">Yearly Summary</h2>
-          <BarChart monthlyStats={monthlyStats} />
+      {/* --- SMART INSIGHTS (NEW SAAS FEEL) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-10">
+
+        {/* Savings Rate */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
+              <FiZap size={22} />
+            </div>
+
+            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full">
+              Healthy
+            </span>
+          </div>
+
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+            Savings Rate
+          </p>
+
+          <h2 className="text-3xl font-black text-slate-900">
+            {savingsRate}%
+          </h2>
+
+          <p className="text-sm text-slate-500 mt-2">
+            Based on your current monthly cashflow.
+          </p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg sm:text-xl font-medium text-[#0F172A] mb-4">Total Report</h2>
-          <DoughnutChart income={income} expenses={expenses} />
+
+        {/* Daily Burn */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center">
+              <FiTrendingDown size={22} />
+            </div>
+
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Daily
+            </span>
+          </div>
+
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+            Average Spend
+          </p>
+
+          <h2 className="text-3xl font-black text-slate-900">
+            Rp {monthlyBurn.toLocaleString("id-ID")}
+          </h2>
+
+          <p className="text-sm text-slate-500 mt-2">
+            Estimated spending per day this month.
+          </p>
+        </div>
+
+        {/* Active Budgets */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <FiTarget size={22} />
+            </div>
+
+            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">
+              Active
+            </span>
+          </div>
+
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+            Budget Plans
+          </p>
+
+          <h2 className="text-3xl font-black text-slate-900">
+            {activeBudgets}
+          </h2>
+
+          <p className="text-sm text-slate-500 mt-2">
+            Budget categories currently monitored.
+          </p>
+        </div>
+
+        {/* Upcoming Bills */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
+              <FiCreditCard size={22} />
+            </div>
+
+            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">
+              Scheduled
+            </span>
+          </div>
+
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+            Upcoming Bills
+          </p>
+
+          <h2 className="text-3xl font-black text-slate-900">
+            {recurringBills}
+          </h2>
+
+          <p className="text-sm text-slate-500 mt-2">
+            Payments waiting to be completed.
+          </p>
         </div>
       </div>
 
-      {/* Upcoming Payments Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg sm:text-xl font-medium text-[#0F172A] mb-4">Upcoming Payments</h2>
+      {/* --- CHARTS --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
 
-        {upcomingPayments.length > 0 ? (
-          <ul className="space-y-4">
-            {upcomingPayments.map((payment) => (
-              <li key={payment._id} className="flex flex-col md:flex-row items-center justify-between p-4 bg-gray-100 rounded-lg shadow-sm">
-                <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-4 w-full md:w-auto">
-                  <div className="flex items-center space-x-2 text-gray-600 text-sm">
-                    <IoMdCalendar size={18} />
-                    <span>{new Date(payment.dueDate).toDateString()}</span>
+        {/* CASHFLOW */}
+        <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 uppercase italic">
+                Cashflow Analytics
+              </h2>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Monitor your income and spending trends.
+              </p>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              Live Data
+            </div>
+          </div>
+
+          <BarChartComponent monthlyStats={monthlyStats} />
+        </div>
+
+        {/* EXPENSE RATIO */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-black text-slate-900 uppercase italic">
+              Expense Ratio
+            </h2>
+
+            <p className="text-sm text-slate-500 mt-1">
+              Compare your spending against total income.
+            </p>
+          </div>
+
+          <DoughnutChartComponent
+            income={income}
+            expenses={expenses}
+          />
+        </div>
+      </div>
+
+      {/* --- BOTTOM SECTION --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        {/* UPCOMING PAYMENTS */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 uppercase italic flex items-center gap-2">
+                <FiCalendar className="text-rose-500" />
+                Bills
+              </h2>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Your nearest scheduled payments.
+              </p>
+            </div>
+
+            <button
+              onClick={() => onSectionChange("Payments")}
+              className="text-blue-600 p-2 hover:bg-blue-50 rounded-full transition-all"
+            >
+              <FiChevronRight size={24} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {upcomingPayments.length > 0 ? (
+              upcomingPayments.slice(0, 3).map((payment) => (
+                <div
+                  key={payment._id}
+                  className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-colors shadow-sm">
+                      <FiCalendar size={18} />
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 truncate max-w-[120px] sm:max-w-[200px]">
+                        {payment.title}
+                      </p>
+
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Due{" "}
+                        {new Date(payment.dueDate).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-gray-900 font-medium truncate">{payment.title}</span>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-black text-rose-500">
+                      Rp {payment.amount.toLocaleString("id-ID")}
+                    </span>
+
+                    <button
+                      onClick={() =>
+                        handleMarkPaid(payment._id, payment.amount)
+                      }
+                      className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"
+                    >
+                      <IoMdCheckmark size={18} />
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-2 md:mt-0 flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end">
-                  <span className="text-red-500 font-semibold">Rp. {payment.amount.toLocaleString("id-ID")}</span>
-                  <button
-                    className="px-3 py-1 bg-green-500 text-white rounded-md shadow hover:bg-green-600 transition-all flex items-center space-x-1"
-                    onClick={() => markPaymentAsPaid(payment._id)}
+              ))
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-slate-400 text-sm font-medium italic">
+                  All bills are paid!
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* BUDGET TRACKER */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 uppercase italic flex items-center gap-2">
+                <FiTarget className="text-blue-600" />
+                Budgets
+              </h2>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Monitor spending limits across categories.
+              </p>
+            </div>
+
+            <button
+              onClick={() => onSectionChange("Budgets")}
+              className="text-blue-600 p-2 hover:bg-blue-50 rounded-full transition-all"
+            >
+              <FiChevronRight size={24} />
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {budgets.length > 0 ? (
+              budgets.slice(0, 4).map((budget) => {
+                const percentage = Math.min(
+                  (budget.spent / budget.limit) * 100,
+                  100
+                );
+
+                return (
+                  <div
+                    key={budget._id}
+                    className="space-y-2"
                   >
-                    <IoMdCheckmark size={18} />
-                    <span>Paid</span>
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-500">No upcoming payments</p>
-        )}
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm font-bold text-slate-700 capitalize">
+                        {budget.category}
+                      </span>
+
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {percentage.toFixed(0)}% Used
+                      </span>
+                    </div>
+
+                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-1000 ${
+                          percentage > 90
+                            ? "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]"
+                            : "bg-blue-600"
+                        }`}
+                        style={{
+                          width: `${percentage}%`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                      <span>
+                        Rp {budget.spent.toLocaleString()}
+                      </span>
+
+                      <span>
+                        Limit: Rp {budget.limit.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-10 border-2 border-dashed border-slate-50 rounded-3xl">
+                <p className="text-slate-400 text-sm font-medium italic">
+                  No budgets defined yet.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Global Modals */}
-      <Modal isOpen={modalType === "transaction"} onClose={() => setModalType(null)} title="Add Transaction">
-        {modalType === "transaction" && <AddTransaction />}
+      {/* --- MODALS --- */}
+      <Modal
+        isOpen={modalType === "transaction"}
+        onClose={() => setModalType(null)}
+        title="Add Transaction"
+        subtitle="Record your income and expenses to keep your financial activity organized and up to date."
+      >
+        <AddTransaction />
       </Modal>
 
-      <Modal isOpen={modalType === "upcoming"} onClose={() => setModalType(null)} title="Add Upcoming Payment">
-        {modalType === "upcoming" && <UpcomingPayment />}
+      <Modal
+        isOpen={modalType === "upcoming"}
+        onClose={() => setModalType(null)}
+        title="Add Upcoming Payment"
+        subtitle="Stay ahead of your bills and scheduled payments with smart reminders and due tracking."
+      >
+        <UpcomingPayment
+          closeModal={() => setModalType(null)}
+        />
       </Modal>
     </div>
   );

@@ -10,6 +10,9 @@
     "preview": "vite preview",
     "cypress": "cypress open"
   },
+    "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "*"
+  },
   "dependencies": {
     "axios": "^1.7.7",
     "chart.js": "^4.4.3",

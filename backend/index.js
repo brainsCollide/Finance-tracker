@@ -22,13 +22,16 @@ app.use(cookieParser()); // ✅ Ensure cookies are parsed
 // ✅ Fixed CORS Configuration
 app.use(
     cors({
-        origin: ["https://finance-tracker-nine-rosy.vercel.app",
+        origin: [
             "http://localhost:5173",
-            "http://localhost:4173"
-        ], // ✅ Replace with your frontend URL
-        credentials: true, // ✅ Allows cookies & authentication headers
-        methods: ["GET", "POST", "PUT", "DELETE"], // ✅ Explicitly allow methods
-        allowedHeaders: ["Content-Type", "Authorization"], // ✅ Ensure correct headers are allowed
+            "http://localhost:4173",
+            "https://finance-tracker-frontend-five-eta.vercel.app",
+            "https://finance-tracker-frontend-git-main-brainscollides-projects.vercel.app",
+            "https://finance-tracker-frontend-leokeco0r-brainscollides-projects.vercel.app"
+        ],
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        allowedHeaders: ["Content-Type", "Authorization"],
     })
 );
 

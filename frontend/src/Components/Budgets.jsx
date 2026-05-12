@@ -1,76 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import axiosInstance from '../api/axiosInstance';
-import { PlusCircle, Target, TrendingUp, AlertCircle } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
+import { FiInbox, FiLoader, FiAlertCircle, FiArrowUpRight, FiArrowDownLeft } from 'react-icons/fi';
+import { toast, ToastContainer } from 'react-toastify';
+import { motion } from "framer-motion";
+import Modal from './Widgets/Modal';
+import 'react-toastify/dist/ReactToastify.css';
 import BudgetCard from './props/BudgetCard';
 import AddBudgetModal from './Widgets/AddBudgetModal';
 import ConfirmModal from './Widgets/ConfirmModal';
+import { useBudgetStore } from '../stores/budget.store';
+
+// ─── Loading ─────────────────────────────────────────────
+
+const Loading = () => (
+  <div className="flex flex-col justify-center items-center h-96 space-y-4">
+    <div className="relative">
+      <div className="w-14 h-14 border-[3px] border-slate-100 border-t-blue-500 rounded-full animate-spin" />
+      <FiLoader className="absolute inset-0 m-auto text-blue-500 animate-pulse" size={24} />
+    </div>
+    <p className="text-slate-400 font-medium tracking-wide">
+      Loading your budgets...
+    </p>
+  </div>
+);
+
+// ─── Empty State ─────────────────────────────────────────
+
+const Empty = ({ onAdd }) => (
+  <div className="flex flex-col justify-center items-center h-[400px] bg-white rounded-[2rem] border-2 border-dashed border-slate-100 p-12 text-center transition-all">
+    <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 text-slate-300 ring-8 ring-slate-50/50">
+      <FiInbox size={40} />
+    </div>
+    <h3 className="text-slate-900 font-bold text-xl tracking-tight">
+      No active budgets yet
+    </h3>
+    <p className="text-slate-500 text-sm max-w-xs mt-2 leading-relaxed">
+      Set your first budget to start tracking and controlling spending by category.
+    </p>
+  </div>
+);
+
+// ─── MAIN COMPONENT ──────────────────────────────────────
 
 const Budgets = () => {
-  const [budgets, setBudgets] = useState([]);
-  const [transactions, setTransactions] = useState([]); // untuk hitung spent
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    budgets = [],
+    isLoadingBudgets,
+    error,
+    fetchBudgets,
+    deleteBudget,
+    upsertBudget,
+  } = useBudgetStore();
 
-  // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
-  const [isDeleting, setIsDeleting] = useState(false); // ← ini yang hilang! tambahkan baris ini
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch budgets & transactions + hitung spent real
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // 1. Fetch budgets
-        const budgetsRes = await axiosInstance.get('/budgets', { withCredentials: true });
-        let fetchedBudgets = Array.isArray(budgetsRes.data) ? budgetsRes.data : [];
+    fetchBudgets();
+  }, [fetchBudgets]);
 
-        // 2. Fetch semua transaksi
-        const transRes = await axiosInstance.get('/transactions', { withCredentials: true });
-        const allTransactions = transRes.data || [];
-
-        // 3. Hitung spent hanya dari expense, group by category
-        const spentByCategory = allTransactions.reduce((acc, tx) => {
-          if (tx.type === "expense" && tx.category) {
-            const category = tx.category.toLowerCase(); // normalize case
-            acc[category] = (acc[category] || 0) + Number(tx.amount || 0);
-          }
-          return acc;
-        }, {});
-
-        // 4. Update budgets dengan spent & percentage real-time
-        fetchedBudgets = fetchedBudgets.map(budget => {
-          const categoryKey = budget.category.toLowerCase();
-          const realSpent = spentByCategory[categoryKey] || 0;
-          const limit = Number(budget.limit) || 0;
-          const percentage = limit > 0 ? Math.min((realSpent / limit) * 100, 100) : 0;
-
-          return {
-            ...budget,
-            spent: realSpent,
-            percentage,
-          };
-        });
-
-        setBudgets(fetchedBudgets);
-        setTransactions(allTransactions);
-      } catch (err) {
-        setError('Gagal memuat data budget atau transaksi. Coba refresh.');
-        console.error("Fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Delete logic
-  const openDeleteConfirm = (id) => {
+  const openDeleteConfirm = (id) =>
     setDeleteModal({ isOpen: true, id });
-  };
 
   const handleConfirmDelete = async () => {
     const id = deleteModal.id;
@@ -78,19 +70,18 @@ const Budgets = () => {
 
     setIsDeleting(true);
     try {
-      await axiosInstance.delete(`/budgets/${id}`, { withCredentials: true });
-      setBudgets((prev) => prev.filter((b) => b._id !== id));
+      await deleteBudget(id);
+
       setDeleteModal({ isOpen: false, id: null });
-      toast.success("Budget berhasil dihapus");
-    } catch (error) {
-      toast.error("Gagal menghapus budget");
-      console.error("Delete error:", error);
+      toast.success('Budget deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete budget');
+      console.error(err);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // Add/Edit logic
   const handleOpenAddModal = () => {
     setSelectedBudget(null);
     setIsModalOpen(true);
@@ -101,169 +92,203 @@ const Budgets = () => {
     setIsModalOpen(true);
   };
 
-  const handleBudgetAddedOrUpdated = (newBudget) => {
-    setBudgets((prev) => {
-      const exists = prev.find((b) => b._id === newBudget._id);
-      if (exists) {
-        return prev.map((b) => (b._id === newBudget._id ? newBudget : b));
-      }
-      return [...prev, newBudget];
-    });
+  const handleBudgetAddedOrUpdated = (budget) => {
+    upsertBudget(budget);
   };
 
-  // Summary calculation (pakai spent real)
-  const totalLimit = budgets.reduce((sum, b) => sum + (b.limit || 0), 0);
-  const totalSpent = budgets.reduce((sum, b) => sum + (b.spent || 0), 0);
-  const overallPercentage = totalLimit > 0 ? Math.min((totalSpent / totalLimit) * 100, 100) : 0;
+  const totalLimit = budgets.reduce(
+    (sum, b) => sum + (Number(b.limit) || 0),
+    0
+  );
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-6 text-gray-600 font-medium">Memuat data keuangan...</p>
+  const totalSpent = budgets.reduce(
+    (sum, b) => sum + (Number(b.spent) || 0),
+    0
+  );
+
+  const overallPercentage =
+    totalLimit > 0
+      ? Math.min((totalSpent / totalLimit) * 100, 100)
+      : 0;
+
+  const renderContent = () => {
+    if (isLoadingBudgets) return <Loading />;
+
+    if (error)
+      return (
+        <div className="flex items-center space-x-3 bg-rose-50 border border-rose-100 p-5 rounded-2xl text-rose-600 mb-6 shadow-sm">
+          <FiAlertCircle size={20} className="shrink-0" />
+          <p className="text-sm font-semibold">{error}</p>
         </div>
-      </div>
-    );
-  }
+      );
 
-  if (error) {
+    if (budgets.length === 0)
+      return <Empty onAdd={handleOpenAddModal} />;
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-lg max-w-md">
-          <AlertCircle size={64} className="mx-auto text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Oops!</h2>
-          <p className="text-gray-600">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition"
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {budgets.map((budget, index) => (
+          <motion.div
+            key={budget._id}
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              duration: 0.45,
+              delay: index * 0.08,
+              ease: "easeOut",
+            }}
           >
-            Refresh Halaman
-          </button>
-        </div>
+            <BudgetCard
+              budget={budget}
+              onDelete={() => openDeleteConfirm(budget._id)}
+              onEdit={() => handleOpenEditModal(budget)}
+            />
+          </motion.div>
+        ))}
       </div>
     );
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-8 md:p-12">
-      <div className="max-w-[1400px] mx-auto">
+    <div className="p-4 sm:p-8 md:p-12 min-h-screen bg-[#F8FAFC]">
+      <div className="max-w-[1600px] mx-auto">
 
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        {/* HEADER */}
+        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
           <div className="space-y-2">
-            <div className="flex items-center gap-3 text-indigo-600">
-              <div className="p-3 bg-indigo-50 rounded-xl">
-                <Target size={28} className="stroke-[2.5]" />
-              </div>
-              <span className="text-xs font-black uppercase tracking-[0.3em] text-indigo-600">Smart Planner</span>
+            <div className="inline-flex items-center space-x-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+              </span>
+              <span>Smart Planner</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
-              Budgeting <span className="text-indigo-600">.</span>
+
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight italic uppercase">
+              Budget Tracker
             </h1>
-            <p className="text-gray-600 font-medium max-w-2xl">
-              Pantau efisiensi pengeluaranmu di setiap kategori secara real-time.
+
+            <p className="text-slate-500 font-medium">
+              Monitoring {budgets.length} active budget{budgets.length !== 1 ? 's' : ''} in real-time
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAddModal}
-            className="group flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all duration-300 shadow-xl shadow-indigo-200/50 active:scale-95"
-          >
-            <PlusCircle className="transition-transform group-hover:rotate-90 duration-500" size={24} />
-            <span>Buat Budget Baru</span>
-          </button>
-        </header>
+          <div className="flex flex-wrap items-center gap-4">
 
-        {/* Overall Summary */}
-        {budgets.length > 0 && (
-          <div className="bg-white rounded-3xl border border-gray-100 p-8 mb-12 shadow-xl relative overflow-hidden">
-            <div className="absolute -top-20 -right-20 text-indigo-500/5">
-              <Target size={300} strokeWidth={1} />
-            </div>
+            {budgets.length > 0 && (
+              <div className="flex items-center gap-4 bg-white p-2 rounded-[1.5rem] border border-slate-100 shadow-sm">
 
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-5 py-2 bg-indigo-50 text-indigo-700 rounded-full text-xs font-black uppercase tracking-widest">
-                  <TrendingUp size={16} /> Status Keseluruhan
+                <div className="flex items-center space-x-3 px-4 py-2 bg-emerald-50/50 rounded-2xl border border-emerald-100/50">
+                  <FiArrowUpRight size={20} className="text-emerald-500" />
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                      Total Limit
+                    </p>
+                    <p className="text-sm font-bold text-emerald-600">
+                      Rp {totalLimit.toLocaleString('id-ID')}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-500 text-sm font-bold uppercase tracking-tight">Total Penggunaan Bulanan</p>
-                  <h2 className="text-5xl font-black text-gray-900 mt-2">
-                    Rp {totalSpent.toLocaleString("id-ID")}
-                    <span className="text-gray-400 font-light text-3xl ml-3">/ Rp {totalLimit.toLocaleString("id-ID")}</span>
-                  </h2>
+
+                <div className="flex items-center space-x-3 px-4 py-2 bg-rose-50/50 rounded-2xl border border-rose-100/50">
+                  <FiArrowDownLeft size={20} className="text-rose-500" />
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                      Total Spent
+                    </p>
+                    <p className="text-sm font-bold text-rose-600">
+                      Rp {totalSpent.toLocaleString('id-ID')}
+                    </p>
+                  </div>
                 </div>
+
               </div>
+            )}
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-end mb-2">
-                  <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Intensitas Penggunaan</span>
-                  <span className={`text-3xl font-black ${overallPercentage > 90 ? 'text-rose-600' : overallPercentage > 60 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {overallPercentage.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="w-full h-6 bg-gray-100 rounded-2xl overflow-hidden p-0.5 border border-gray-200">
-                  <div
-                    className={`h-full rounded-xl transition-all duration-1000 ease-out shadow-inner ${
-                      overallPercentage > 90 ? 'bg-rose-500' :
-                      overallPercentage > 60 ? 'bg-amber-500' :
-                      'bg-emerald-500'
-                    }`}
-                    style={{ width: `${overallPercentage}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Grid Budget Cards */}
-        {budgets.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {budgets.map((budget) => (
-              <BudgetCard
-                key={budget._id}
-                budget={budget}
-                onDelete={() => openDeleteConfirm(budget._id)}
-                onEdit={() => handleOpenEditModal(budget)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-32 bg-white rounded-3xl border-4 border-dashed border-gray-200 shadow-inner">
-            <div className="w-32 h-32 bg-gray-50 rounded-2xl flex items-center justify-center mb-8 text-gray-300">
-              <AlertCircle size={64} />
-            </div>
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight">Belum Ada Budget Aktif</h3>
-            <p className="text-gray-500 font-medium mt-4 text-center max-w-md">
-              Buat budget pertama Anda untuk mulai memantau dan mengontrol pengeluaran per kategori.
-            </p>
             <button
               onClick={handleOpenAddModal}
-              className="mt-8 px-8 py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition shadow-lg"
+              className="group flex items-center gap-3 px-6 py-3 bg-blue-500 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all duration-300 shadow-lg shadow-blue-200/60 active:scale-95"
             >
-              Buat Budget Baru
+              <PlusCircle className="transition-transform group-hover:rotate-90 duration-500" size={20} />
+              <span>New Budget</span>
             </button>
+
+          </div>
+        </header>
+
+        {/* OVERALL USAGE (FIXED POSITION) */}
+        {budgets.length > 0 && (
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 mb-10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Overall Usage
+              </p>
+
+              <span
+                className={`text-sm font-black ${
+                  overallPercentage > 90
+                    ? 'text-rose-600'
+                    : overallPercentage > 60
+                    ? 'text-amber-600'
+                    : 'text-emerald-600'
+                }`}
+              >
+                {overallPercentage.toFixed(1)}% used
+              </span>
+            </div>
+
+            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                  overallPercentage > 90
+                    ? 'bg-rose-500'
+                    : overallPercentage > 60
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+                }`}
+                style={{ width: `${overallPercentage}%` }}
+              />
+            </div>
           </div>
         )}
+
+        {/* CONTENT */}
+        <main>{renderContent()}</main>
+
       </div>
 
-      {/* Modals */}
-      <AddBudgetModal
+      {/* MODALS */}
+      <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onBudgetAdded={handleBudgetAddedOrUpdated}
-        editingBudget={selectedBudget}
-      />
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedBudget(null);
+        }}
+        title={selectedBudget ? "Edit Budget" : "Add Budget"}
+      >
+        <AddBudgetModal
+          budget={selectedBudget}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedBudget(null);
+          }}
+          onSaved={handleBudgetAddedOrUpdated}
+        />
+      </Modal>
 
       <ConfirmModal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, id: null })}
         onConfirm={handleConfirmDelete}
-        title="Konfirmasi Penghapusan"
-        message="Budget ini akan dihapus permanen beserta limitnya. Aksi ini tidak dapat dibatalkan."
-        isLoading={isDeleting} // ← sekarang isDeleting sudah didefinisikan
+        title="Delete Budget"
+        message="This budget and its limit will be permanently deleted. This action cannot be undone."
+        isLoading={isDeleting}
+      />
+
+      <ToastContainer
+        position="bottom-right"
+        toastClassName="rounded-2xl font-sans shadow-2xl border border-slate-50 !bg-white !text-slate-900"
+        progressClassName="!bg-blue-500"
       />
     </div>
   );

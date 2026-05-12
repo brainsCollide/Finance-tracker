@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import axiosInstance from "../api/axiosInstance";
+import { useBudgetStore } from "./budget.store";
 
 export const useBalanceStore = create((set, get) => ({
   income: 0,
@@ -39,13 +40,15 @@ export const useBalanceStore = create((set, get) => ({
   addTransaction: async (transactionData) => {
     try {
       await axiosInstance.post("/transactions", transactionData, { withCredentials: true });
-      
-      // ✅ TRIGGER UPDATE INSTAN:
-      // Ambil data terbaru untuk Cards, Bar Chart, dan Doughnut Chart secara paralel
+
       await Promise.all([
         get().fetchTransactionStats(),
         get().fetchTransactions()
       ]);
+
+      // 🔥 ADD INI (INI KUNCI NYA)
+      await useBudgetStore.getState().fetchBudgets();
+
     } catch (error) {
       throw error;
     }
@@ -53,17 +56,24 @@ export const useBalanceStore = create((set, get) => ({
 
   // Helper untuk Payment (Opsional jika masih dipakai)
   markPaymentAsPaid: async (amount) => {
-    try {
-      await axiosInstance.post("/transactions", {
-        type: "expense",
-        amount: Number(amount),
-        title: "Paid Upcoming Payment",
-        category: "other",
-      });
-      await get().fetchTransactionStats();
-      await get().fetchTransactions();
-    } catch (error) {
-      throw error;
-    }
-  },
+  try {
+    await axiosInstance.post("/transactions", {
+      type: "expense",
+      amount: Number(amount),
+      title: "Paid Upcoming Payment",
+      category: "other",
+    });
+
+    await Promise.all([
+      get().fetchTransactionStats(),
+      get().fetchTransactions()
+    ]);
+
+    // 🔥 ADD INI JUGA
+    await useBudgetStore.getState().fetchBudgets();
+
+  } catch (error) {
+    throw error;
+  }
+},
 }));

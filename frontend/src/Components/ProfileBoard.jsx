@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "../api/axiosInstance";
 import ProfilePage from "./ProfilePage";
+import T from "../assets/letter-t.svg";
 
 const ProfileBoard = () => {
   const [form, setForm] = useState({
@@ -111,9 +112,14 @@ const ProfileBoard = () => {
   }
 
   return (
-    <div className="p-6 sm:p-10 min-h-screen bg-gray-100 flex flex-col justify-center items-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full sm:max-w-md">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+    <div className="p-6 sm:p-10 min-h-screen flex flex-col justify-center items-center">
+      <div className="w-full sm:max-w-md">
+        <div className="w-full flex justify-center mb-4">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <img src={T} alt="Logo" className="w-6 h-6 invert " />
+          </div>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
           {isSignUp ? "Create an Account" : "Welcome Back!"}
         </h2>
 

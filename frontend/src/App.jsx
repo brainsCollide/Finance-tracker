@@ -13,13 +13,27 @@ import Recurring from './Components/Recurring';
 function MainApp() {
   const [activeSection, setActiveSection] = useState('Dashboard');
 
+  const handleLogout = async () => {
+  try {
+    await axiosInstance.post("/auth/logout", {}, { withCredentials: true });
+
+    // reset state / redirect / apapun logic kamu
+    window.location.href = "/";
+  } catch (err) {
+    console.error("Logout error", err);
+  }
+};
+
   const handleSectionChange = (section) => {
     setActiveSection(section);
   };
 
   return (
     <div className="w-full flex">
-      <Sidebar onSectionChange={handleSectionChange} />
+      <Sidebar 
+        onSectionChange={handleSectionChange}
+        onLogout={handleLogout}
+      />
       <main className="grow">
         {activeSection === "Dashboard" && <Dashboard onSectionChange={handleSectionChange}/>}
         {activeSection === "Transactions" && <TransactionBar onSectionChange={handleSectionChange} />}

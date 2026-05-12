@@ -1,6 +1,4 @@
 import { ToastContainer } from "react-toastify";
-import AuthPrompt from "./Widgets/AuthPrompt";
-import { IoMdPerson } from "react-icons/io";
 import { FiInbox, FiLoader, FiAlertCircle, FiSearch, FiFilter, FiArrowUpRight, FiArrowDownLeft } from "react-icons/fi";
 import TransactionCard from "./TransactionCard";
 import useTransactions from "../hooks/useTransactions";
@@ -43,11 +41,6 @@ const TransactionBar = ({ onSectionChange }) => {
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const renderContent = () => {
-    if (!isAuthenticated) return (
-      <div className="bg-white rounded-[2rem] p-12 shadow-sm border border-slate-100 text-center">
-        <AuthPrompt message="Please log in to access your transactions." onLogin={handleLoginRedirect} icon={IoMdPerson} />
-      </div>
-    );
     
     if (loading) return <Loading />;
     if (error) return (

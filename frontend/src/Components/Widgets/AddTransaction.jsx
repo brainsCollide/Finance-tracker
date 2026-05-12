@@ -86,7 +86,7 @@ const AddTransaction = ({ closeModal }) => {
             icon={FiDollarSign}
             type="number"
             name="amount"
-            placeholder="0.00"
+            placeholder="00"
             value={transaction.amount}
             onChange={handleChanges}
             error={errors.amount}

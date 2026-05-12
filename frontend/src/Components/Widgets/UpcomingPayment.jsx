@@ -3,6 +3,26 @@ import { usePaymentStore } from "../../stores/payment.store";
 import { toast } from "react-toastify";
 import { FiTag, FiDollarSign, FiCalendar, FiLayers } from "react-icons/fi";
 
+
+
+  // Helper component for cleaner code
+  const FormInput = ({ label, icon: Icon, ...props }) => (
+    <div className="space-y-1.5">
+      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+        {label}
+      </label>
+      <div className="relative group">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+          <Icon size={18} />
+        </div>
+        <input
+          {...props}
+          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+        />
+      </div>
+    </div>
+  );
+
 const UpcomingPayment = ({ closeModal }) => {
   const addPayment = usePaymentStore((state) => state.addPayment);
 
@@ -38,24 +58,6 @@ const UpcomingPayment = ({ closeModal }) => {
       setLoading(false);
     }
   };
-
-  // Helper component for cleaner code
-  const FormInput = ({ label, icon: Icon, ...props }) => (
-    <div className="space-y-1.5">
-      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
-        {label}
-      </label>
-      <div className="relative group">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-          <Icon size={18} />
-        </div>
-        <input
-          {...props}
-          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-        />
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-1">

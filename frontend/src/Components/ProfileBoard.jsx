@@ -15,11 +15,11 @@ const ProfileBoard = () => {
   const [userData, setUserData] = useState(null);
   
   // ✅ Modified password validation state
-  const [passwordValidation, setPasswordValidation] = useState({
+ const [passwordValidation, setPasswordValidation] = useState({
     minLength: false,
-    allLowercase: false,  // ✅ Changed from hasLowercase to allLowercase
+    hasLowercase: false,
+    hasUppercase: false,
     hasNumber: false,
-    hasSpecialChar: false
   });
   
   const [passwordTouched, setPasswordTouched] = useState(false);
@@ -39,8 +39,10 @@ const ProfileBoard = () => {
   // ✅ Modified validation function to check for all lowercase
   const validatePassword = (password) => {
     return {
-      minLength: password.length >= 6,
-      allLowercase: /^[a-z]*$/.test(password), // ✅ Tests if password contains ONLY lowercase letters
+      minLength: password.length >= 8,
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /\d/.test(password),
     };
   };
 
@@ -173,13 +175,25 @@ const ProfileBoard = () => {
           {/* ✅ Modified password requirements display */}
           {isSignUp && passwordTouched && (
             <div className="text-sm space-y-1 mt-2 bg-gray-50 p-3 rounded-md">
-              <h4 className="font-medium text-gray-700">Password Requirements:</h4>
+              <h4 className="font-medium text-gray-700">
+                Password Requirements:
+              </h4>
+
               <ul className="space-y-1 pl-5">
                 <li className={passwordValidation.minLength ? "text-green-600" : "text-red-500"}>
-                  {passwordValidation.minLength ? "✓" : "✗"} At least 6 characters
+                  {passwordValidation.minLength ? "✓" : "✗"} At least 8 characters
                 </li>
-                <li className={passwordValidation.allLowercase ? "text-green-600" : "text-red-500"}>
-                  {passwordValidation.allLowercase ? "✓" : "✗"} Must contain only lowercase letters
+
+                <li className={passwordValidation.hasLowercase ? "text-green-600" : "text-red-500"}>
+                  {passwordValidation.hasLowercase ? "✓" : "✗"} At least 1 lowercase letter
+                </li>
+
+                <li className={passwordValidation.hasUppercase ? "text-green-600" : "text-red-500"}>
+                  {passwordValidation.hasUppercase ? "✓" : "✗"} At least 1 uppercase letter
+                </li>
+
+                <li className={passwordValidation.hasNumber ? "text-green-600" : "text-red-500"}>
+                  {passwordValidation.hasNumber ? "✓" : "✗"} At least 1 number
                 </li>
               </ul>
             </div>

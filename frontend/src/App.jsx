@@ -1,62 +1,36 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Sidebar from './Components/Sidebar';
-import Dashboard from './Components/Dashboard';
-import TransactionBar from './Components/TransactionBar';
-import ProfileBoard from './Components/ProfileBoard';
-import WelcomePage from './Components/WelcomePage';
-import Goals from './Components/Goals';
-import Budgets from './Components/Budgets';
-import Export from './Components/Export';
-import Recurring from './Components/Recurring';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
-function MainApp() {
-  const [activeSection, setActiveSection] = useState('Dashboard');
+import WelcomePage from "./Components/WelcomePage";
+import AppLayout from "./layout/AppLayout";
 
-  const handleLogout = async () => {
-  try {
-    await axiosInstance.post("/auth/logout", {}, { withCredentials: true });
+import Dashboard from "./Components/Dashboard";
+import TransactionBar from "./Components/TransactionBar";
+import ProfileBoard from "./Components/ProfileBoard";
+import Goals from "./Components/Goals";
+import Budgets from "./Components/Budgets";
+import Export from "./Components/Export";
+import Recurring from "./Components/Recurring";
 
-    // reset state / redirect / apapun logic kamu
-    window.location.href = "/";
-  } catch (err) {
-    console.error("Logout error", err);
-  }
-};
-
-  const handleSectionChange = (section) => {
-    setActiveSection(section);
-  };
-
+export default function App() {
   return (
-    <div className="w-full flex">
-      <Sidebar 
-        onSectionChange={handleSectionChange}
-        onLogout={handleLogout}
-      />
-      <main className="grow">
-        {activeSection === "Dashboard" && <Dashboard onSectionChange={handleSectionChange}/>}
-        {activeSection === "Transactions" && <TransactionBar onSectionChange={handleSectionChange} />}
-        {activeSection === "Account" && <ProfileBoard />}
-        {activeSection === "Goals" && <Goals />}
-        {activeSection === "Budgets" && <Budgets />}
-        {activeSection === "Export" && <Export />}
-        {activeSection === "Recurring" && <Recurring />}
-        {/* Add more sections as needed */}
-      </main>
-    </div>
+    <Routes>
+      {/* public route */}
+      <Route path="/" element={<WelcomePage />} />
+
+      {/* redirect */}
+      <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+
+      {/* protected layout */}
+      <Route path="/app" element={<AppLayout />}>
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="transactions" element={<TransactionBar />} />
+        <Route path="account" element={<ProfileBoard />} />
+        <Route path="goals" element={<Goals />} />
+        <Route path="budgets" element={<Budgets />} />
+        <Route path="export" element={<Export />} />
+        <Route path="recurring" element={<Recurring />} />
+      </Route>
+    </Routes>
   );
 }
-
-function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<WelcomePage />} />
-        <Route path="/app" element={<MainApp />} />
-      </Routes>
-    </Router>
-  );
-}
-
-export default App;

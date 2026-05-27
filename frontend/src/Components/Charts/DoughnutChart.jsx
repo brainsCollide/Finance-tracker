@@ -6,7 +6,7 @@ import {
   Legend,
 } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
-import { useBalanceStore } from "../stores/balance.store";
+import { useBalanceStore } from "../../stores/balance.store";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 

@@ -3,12 +3,13 @@ import AddTransaction from "./Widgets/AddTransaction";
 import StatCard from "./props/StatCard";
 import UpcomingPayment from "./Widgets/UpcomingPayment";
 import Modal from "./Widgets/Modal";
-import BarChartComponent from "./BarChart";
-import DoughnutChartComponent from "./DoughnutChart";
-import axiosInstance from "../api/axiosInstance";
+import BarChartComponent from "./Charts/BarChart";
+import DoughnutChartComponent from "./Charts/DoughnutChart";
+import { useAuthStore } from "../stores/auth.store";
 import {
   IoMdCheckmark,
 } from "react-icons/io";
+import SavingsRateBadge from "./Badges/SavingsRateBadge";
 
 import {
   FiTrendingUp,
@@ -29,8 +30,8 @@ import { toast, ToastContainer } from "react-toastify";
 
 export default function Dashboard({ onSectionChange }) {
   const [modalType, setModalType] = useState(null);
-  const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { user, fetchUser } = useAuthStore();
 
   // Zustand Stores
   const {
@@ -57,11 +58,7 @@ export default function Dashboard({ onSectionChange }) {
     try {
       setIsLoading(true);
 
-      const authResponse = await axiosInstance.get("/auth/current", {
-        withCredentials: true,
-      });
-
-      setUser(authResponse.data.user);
+      await fetchUser();
 
       await Promise.all([
         fetchTransactionStats(),
@@ -73,11 +70,7 @@ export default function Dashboard({ onSectionChange }) {
     } finally {
       setIsLoading(false);
     }
-  }, [
-    fetchTransactionStats,
-    fetchUpcomingPayments,
-    fetchBudgets,
-  ]);
+  }, [fetchTransactionStats, fetchUpcomingPayments, fetchBudgets, fetchUser]);
 
   useEffect(() => {
     initDashboard();
@@ -194,29 +187,7 @@ export default function Dashboard({ onSectionChange }) {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-10">
 
         {/* Savings Rate */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
-          <div className="flex items-center justify-between mb-5">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
-              <FiZap size={22} />
-            </div>
-
-            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full">
-              Healthy
-            </span>
-          </div>
-
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-            Savings Rate
-          </p>
-
-          <h2 className="text-3xl font-black text-slate-900">
-            {savingsRate}%
-          </h2>
-
-          <p className="text-sm text-slate-500 mt-2">
-            Based on your current monthly cashflow.
-          </p>
-        </div>
+        <SavingsRateBadge savingsRate={savingsRate} />
 
         {/* Daily Burn */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
@@ -501,7 +472,9 @@ export default function Dashboard({ onSectionChange }) {
         title="Add Transaction"
         subtitle="Record your income and expenses to keep your financial activity organized and up to date."
       >
-        <AddTransaction />
+        <AddTransaction 
+          closeModal={() => setModalType(null)}
+        />
       </Modal>
 
       <Modal

@@ -81,6 +81,23 @@ export const useBudgetStore = create((set, get) => ({
     }));
   },
 
+  upsertBudget: (budget) =>
+  set((state) => {
+    const exists = state.budgets.find(b => b._id === budget._id);
+
+    if (exists) {
+      return {
+        budgets: state.budgets.map(b =>
+          b._id === budget._id ? budget : b
+        ),
+      };
+    }
+
+    return {
+      budgets: [budget, ...state.budgets],
+    };
+  }),
+
   // ─────────────────────────────
   // DELETE FROM DATABASE + UI
   // ─────────────────────────────

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import T from "../assets/letter-t.svg";
 import { useAuthStore } from "../stores/auth.store";
@@ -34,6 +34,7 @@ function Sidebar() {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
+  const navigate = useNavigate();
 
   const { user, fetchUser } = useAuthStore();
 
@@ -112,7 +113,8 @@ function Sidebar() {
                   <motion.span
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="text-xl font-black text-white"
+                    className="text-xl font-black text-white cursor-pointer"
+                    onClick={() => navigate("/")}
                   >
                     Tracker<span className="text-blue-500">.</span>
                   </motion.span>

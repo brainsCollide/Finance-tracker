@@ -78,8 +78,12 @@ const AddBudgetModal = ({ isOpen, onClose, onSaved, budget }) => {
       onClose?.();
 
     } catch (err) {
+      console.log("BUDGET ERROR FULL:", err);
+      console.log("RESPONSE:", err.response?.data);
+
       setFormError(
         err.response?.data?.message ||
+        err.message ||
         "Failed to create budget"
       );
     } finally {

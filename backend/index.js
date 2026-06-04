@@ -8,6 +8,7 @@ const transactionRoute = require('./routes/transactionRoutes');
 const upcomingPaymentRoute = require('./routes/paymentRoute');
 const budgetRoute = require('./routes/budgetRoutes'); 
 const recurringRoute = require('./routes/recurringRoutes');
+const goalRoutes = require("./routes/goalRoutes");
 const connectDB = require('./config/db');
 
 const app = express();
@@ -56,6 +57,7 @@ app.use('/auth', authRoute);
 app.use('/users', userRoute);
 app.use ('/budgets', budgetRoute);
 app.use('/recurring', recurringRoute);
+app.use("/goals", goalRoutes);
 
 // ✅ Fix: Improved Error Handling Middleware
 app.use((err, req, res, next) => {

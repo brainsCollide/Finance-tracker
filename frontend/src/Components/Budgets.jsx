@@ -207,7 +207,7 @@ const Budgets = () => {
 
             <button
               onClick={handleOpenAddModal}
-              className="group flex items-center gap-3 px-6 py-3 bg-blue-500 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all duration-300 shadow-lg shadow-blue-200/60 active:scale-95"
+              className="group flex items-center gap-3 px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all duration-300 shadow-lg shadow-blue-200/60 active:scale-95"
             >
               <PlusCircle className="transition-transform group-hover:rotate-90 duration-500" size={20} />
               <span>New Budget</span>
@@ -265,6 +265,7 @@ const Budgets = () => {
           setSelectedBudget(null);
         }}
         title={selectedBudget ? "Edit Budget" : "Add Budget"}
+        subtitle={selectedBudget ? "Update your budget details" : "Create a new budget to start tracking"}
       >
         <AddBudgetModal
           budget={selectedBudget}

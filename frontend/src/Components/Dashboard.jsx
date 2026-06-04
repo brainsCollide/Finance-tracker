@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { PlusCircle } from 'lucide-react';
 import AddTransaction from "./Widgets/AddTransaction";
 import StatCard from "./props/StatCard";
 import UpcomingPayment from "./Widgets/UpcomingPayment";
@@ -20,7 +21,6 @@ import {
   FiChevronRight,
   FiActivity,
   FiCreditCard,
-  FiZap,
 } from "react-icons/fi";
 
 import { useBalanceStore } from "../stores/balance.store";
@@ -145,16 +145,24 @@ export default function Dashboard({ onSectionChange }) {
         <div className="flex gap-3">
           <button
             onClick={() => setModalType("transaction")}
-            className="flex-1 sm:flex-none px-6 py-3.5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all shadow-xl active:scale-95 text-sm"
+            className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-6 py-3.5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all shadow-xl active:scale-95 text-sm"
           >
-            + Transaction
+            <PlusCircle
+              className="transition-transform group-hover:rotate-90 duration-500"
+              size={20}
+            />
+            <span>Transaction</span>
           </button>
 
           <button
             onClick={() => setModalType("upcoming")}
-            className="flex-1 sm:flex-none px-6 py-3.5 bg-white text-slate-900 border border-slate-200 font-bold rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95 text-sm"
+            className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-6 py-3.5 bg-white text-slate-900 border border-slate-200 font-bold rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95 text-sm"
           >
-            + Payment
+            <PlusCircle
+              className="transition-transform group-hover:rotate-90 duration-500"
+              size={20}
+            />
+            <span>Payment</span>
           </button>
         </div>
       </div>

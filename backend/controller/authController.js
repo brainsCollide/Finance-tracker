@@ -1,6 +1,8 @@
 const Joi = require("joi");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const sendEmail = require("../utils/sendEmail");
 
 const isProduction =
   process.env.NODE_ENV === "production" &&
@@ -161,8 +163,9 @@ const logOut = (req, res) => {
 // ========================
 // GET CURRENT USER
 // ========================
+
 const getCurrentUser = async (req, res) => {
-  const token = req.cookies.token;
+  const token = req.cookies?.token;
 
   if (!token) {
     return res.status(401).json({
@@ -173,20 +176,138 @@ const getCurrentUser = async (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const user = await User.findById(decoded.userId)
-      .select("-password")
-      .populate("transactions");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    if (!decoded.userId) {
+      return res.status(401).json({
+        message: "Invalid token payload",
+      });
     }
 
-    res.status(200).json({ user });
+    const user = await User.findById(decoded.userId)
+      .select("-password")
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({ user });
   } catch (error) {
-    res.status(401).json({
-      message: "Unauthorized: Invalid or expired token",
-      error: error.message,
+    console.error("getCurrentUser error:", error.name, error.message);
+
+    return res.status(401).json({
+      message:
+        error.name === "TokenExpiredError"
+          ? "Session expired. Please sign in again."
+          : "Unauthorized: Invalid token",
     });
+  }
+};
+
+
+// ========================
+// FORGOT / RESET VALIDATION
+// ========================
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required(),
+});
+
+const resetPasswordSchema = Joi.object({
+  password: Joi.string()
+    .min(8)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
+    .messages({
+      "string.pattern.base":
+        "Password must contain uppercase, lowercase, and number",
+      "string.min": "Password must be at least 8 characters",
+    })
+    .required(),
+});
+
+// ========================
+// FORGOT PASSWORD
+// ========================
+const forgotPassword = async (req, res) => {
+  const { error } = forgotPasswordSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  const genericMsg = {
+    message: "If the email is registered, a reset link has been sent.",
+  };
+
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) return res.status(200).json(genericMsg);
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset Password",
+        html: `<p>Klik link berikut untuk reset password (berlaku 15 menit):</p>
+               <a href="${resetUrl}">${resetUrl}</a>
+               <p>Abaikan email ini jika kamu tidak memintanya.</p>`,
+      });
+    } catch (mailErr) {
+      console.error("Mail error:", mailErr);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+      return res.status(500).json({ message: "Failed to send email" });
+    }
+
+    res.status(200).json(genericMsg);
+  } catch (err) {
+    console.error("Forgot password error:", err); // <-- dan ini
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ========================
+// RESET PASSWORD
+// ========================
+const resetPassword = async (req, res) => {
+  const { error } = resetPasswordSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  try {
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    }).select("+resetPasswordToken +resetPasswordExpires");
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Token is invalid or has expired" });
+    }
+
+    user.password = req.body.password; // di-hash oleh pre('save') di model
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -195,4 +316,6 @@ module.exports = {
   signIn,
   logOut,
   getCurrentUser,
+  forgotPassword,
+  resetPassword,
 };

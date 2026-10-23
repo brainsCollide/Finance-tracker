@@ -3,18 +3,11 @@ const bcrypt = require('bcrypt');
 
 // User Schema
 const userSchema = new mongoose.Schema({
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    username: { type: String, required: true, unique: true, trim: true },
-    password: {
-      type: String,
-      required: true,
-      minlength: 8,
-      select: false // Prevents password from being returned in queries by default
-    },
-    transactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Transaction" }] // ✅ Ensure reference is correct
-  },
-  { timestamps: true }
-);
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true, select: false },
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpires: { type: Date, select: false },
+}, { timestamps: true });
 
 // Hash the password before saving
 userSchema.pre("save", async function (next) {

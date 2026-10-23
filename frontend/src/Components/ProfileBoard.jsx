@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "../api/axiosInstance";
 import ProfilePage from "./ProfilePage";
+import { Link } from "react-router-dom";
 import T from "../assets/letter-t.svg";
 
 const ProfileBoard = () => {
@@ -170,6 +171,14 @@ const ProfileBoard = () => {
             >
               {showPassword ? "Hide" : "Show"}
             </button>
+
+              {!isSignUp && (
+              <div className="text-right">
+                <Link to="/forgot-password" className="text-sm text-blue-500 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+            )}
           </div>
           
           {/* ✅ Modified password requirements display */}

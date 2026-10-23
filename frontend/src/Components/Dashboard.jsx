@@ -30,6 +30,7 @@ export default function Dashboard({ onSectionChange }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const [chartMode, setChartMode] = useState("monthly");
+  const [summaryMode, setSummaryMode] = useState("monthly");
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().getMonth()
   );
@@ -45,7 +46,7 @@ export default function Dashboard({ onSectionChange }) {
     monthlyStats = [],
     transactions = [],
     yearToDate,
-    period,
+    yearlyTotal,
     fetchTransactionStats,
     fetchTransactions,
   } = useBalanceStore();
@@ -61,8 +62,23 @@ export default function Dashboard({ onSectionChange }) {
     fetchBudgets,
   } = useBudgetStore();
 
-  // Net cashflow = income - expenses.
-  const balance = income - expenses;
+  // The selected month/year drives the summary and the chart's yearly data.
+  const selectedMonthNumber = selectedMonth + 1;
+
+  // Net cashflow values for the selected summary mode.
+  const summaryIncome =
+    summaryMode === "yearly"
+      ? Number(yearlyTotal?.income) || 0
+      : income;
+  const summaryExpenses =
+    summaryMode === "yearly"
+      ? Number(yearlyTotal?.expenses) || 0
+      : expenses;
+  const balance = summaryIncome - summaryExpenses;
+  const summaryNet =
+    summaryMode === "yearly"
+      ? Number(yearlyTotal?.netCashflow) || balance
+      : Number(yearToDate?.netCashflow) || 0;
 
   const initDashboard = useCallback(async () => {
     try {
@@ -70,7 +86,6 @@ export default function Dashboard({ onSectionChange }) {
       await fetchUser();
 
       await Promise.all([
-        fetchTransactionStats(),
         fetchTransactions(),
         fetchUpcomingPayments(),
         fetchBudgets(),
@@ -81,7 +96,6 @@ export default function Dashboard({ onSectionChange }) {
       setIsLoading(false);
     }
   }, [
-    fetchTransactionStats,
     fetchTransactions,
     fetchUpcomingPayments,
     fetchBudgets,
@@ -92,12 +106,17 @@ export default function Dashboard({ onSectionChange }) {
     initDashboard();
   }, [initDashboard]);
 
+  // Reload stats whenever the selected month or year changes.
+  useEffect(() => {
+    fetchTransactionStats(selectedMonthNumber, selectedYear);
+  }, [fetchTransactionStats, selectedMonthNumber, selectedYear]);
+
   const handleMarkPaid = async (id, amount) => {
     try {
       await markAsPaid(id, amount);
 
       await Promise.all([
-        fetchTransactionStats(),
+        fetchTransactionStats(selectedMonthNumber, selectedYear),
         fetchTransactions(),
         fetchBudgets(),
       ]);
@@ -110,40 +129,44 @@ export default function Dashboard({ onSectionChange }) {
   };
 
   const savingsRate =
-    income > 0
-      ? Number(((balance / income) * 100).toFixed(1))
+    summaryIncome > 0
+      ? Number(((balance / summaryIncome) * 100).toFixed(1))
       : 0;
 
   const today = new Date();
-
-  const activeYear = Number(period?.year) || today.getFullYear();
-  const activeMonth = Number(period?.month) || today.getMonth() + 1;
-
+  const daysInSelectedMonth = new Date(
+    selectedYear,
+    selectedMonthNumber,
+    0
+  ).getDate();
   const daysElapsed =
-    activeYear === today.getFullYear() &&
-    activeMonth === today.getMonth() + 1
+    selectedYear === today.getFullYear() &&
+    selectedMonthNumber === today.getMonth() + 1
       ? today.getDate()
-      : new Date(activeYear, activeMonth, 0).getDate();
+      : daysInSelectedMonth;
 
   const monthlyBurn =
     daysElapsed > 0
-      ? Math.round(expenses / daysElapsed)
+      ? Math.round(summaryExpenses / daysElapsed)
       : 0;
+  const yearlyMonthlyAverage = Math.round(summaryExpenses / 12);
 
   const activeBudgets = budgets.length;
   const recurringBills = upcomingPayments.length;
 
-  const yearToDateNet =
-    Number(yearToDate?.netCashflow) || 0;
+  const periodLabel =
+    summaryMode === "yearly"
+      ? String(selectedYear)
+      : new Date(
+          selectedYear,
+          selectedMonth,
+          1
+        ).toLocaleDateString("en-US", {
+          month: "long",
+          year: "numeric",
+        });
 
-  const periodLabel = new Date(
-    activeYear,
-    activeMonth - 1,
-    1
-  ).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  const periodNoun = summaryMode === "yearly" ? "year" : "month";
 
   const formatRupiah = (amount) =>
     `Rp ${Number(amount || 0).toLocaleString("id-ID")}`;
@@ -215,7 +238,7 @@ export default function Dashboard({ onSectionChange }) {
 
         {/* PRIMARY FINANCIAL SUMMARY */}
         <section>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-slate-900">
                 Financial summary
@@ -225,9 +248,62 @@ export default function Dashboard({ onSectionChange }) {
               </p>
             </div>
 
-            <span className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500">
-              Monthly overview
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center rounded-lg bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setSummaryMode("monthly")}
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                    summaryMode === "monthly"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryMode("yearly")}
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                    summaryMode === "yearly"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  Yearly
+                </button>
+              </div>
+
+              {summaryMode === "monthly" ? (
+                <input
+                  aria-label="Select month and year for financial summary"
+                  type="month"
+                  value={`${selectedYear}-${String(selectedMonthNumber).padStart(2, "0")}`}
+                  onChange={(event) => {
+                    if (!event.target.value) return;
+                    const [year, month] = event.target.value.split("-").map(Number);
+                    setSelectedYear(year);
+                    setSelectedMonth(month - 1);
+                  }}
+                  className="min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              ) : (
+                <input
+                  aria-label="Select year for financial summary"
+                  type="number"
+                  min="2000"
+                  max="2100"
+                  value={selectedYear}
+                  onChange={(event) => {
+                    const year = Number(event.target.value);
+                    if (Number.isInteger(year) && year >= 2000 && year <= 2100) {
+                      setSelectedYear(year);
+                    }
+                  }}
+                  className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
@@ -250,17 +326,19 @@ export default function Dashboard({ onSectionChange }) {
                 </p>
 
                 <p className="mt-3 text-sm text-slate-500">
-                  Income minus expenses for this month.
+                  {summaryMode === "yearly"
+                    ? "Income minus expenses for the selected year."
+                    : `Income minus expenses for ${periodLabel}.`}
                 </p>
 
                 <div className="mt-7 border-t border-slate-100 pt-5">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-xs text-slate-500">
-                        Year-to-date net
+                        {summaryMode === "yearly" ? "Yearly net" : "Year-to-date net"}
                       </p>
                       <p className="mt-1 text-lg font-semibold text-slate-800">
-                        {formatRupiah(yearToDateNet)}
+                        {formatRupiah(summaryNet)}
                       </p>
                     </div>
 
@@ -291,7 +369,7 @@ export default function Dashboard({ onSectionChange }) {
                     <FiTrendingUp size={19} />
                   </div>
                   <span className="text-xs font-medium text-slate-400">
-                    This month
+                    {summaryMode === "yearly" ? "This year" : periodLabel}
                   </span>
                 </div>
 
@@ -299,10 +377,10 @@ export default function Dashboard({ onSectionChange }) {
                   Total income
                 </p>
                 <p className="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-900">
-                  {formatRupiah(income)}
+                  {formatRupiah(summaryIncome)}
                 </p>
                 <p className="mt-2 text-xs text-slate-400">
-                  Money received this month
+                  {summaryMode === "yearly" ? "Money received this year" : `Money received in ${periodLabel}`}
                 </p>
               </div>
 
@@ -312,7 +390,7 @@ export default function Dashboard({ onSectionChange }) {
                     <FiTrendingDown size={19} />
                   </div>
                   <span className="text-xs font-medium text-slate-400">
-                    This month
+                    {summaryMode === "yearly" ? "This year" : periodLabel}
                   </span>
                 </div>
 
@@ -320,10 +398,10 @@ export default function Dashboard({ onSectionChange }) {
                   Total expenses
                 </p>
                 <p className="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-900">
-                  {formatRupiah(expenses)}
+                  {formatRupiah(summaryExpenses)}
                 </p>
                 <p className="mt-2 text-xs text-slate-400">
-                  Money spent this month
+                  {summaryMode === "yearly" ? "Money spent this year" : `Money spent in ${periodLabel}`}
                 </p>
               </div>
             </div>
@@ -340,7 +418,7 @@ export default function Dashboard({ onSectionChange }) {
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
                   {chartMode === "monthly"
-                    ? "Compare income and spending across the year."
+                    ? `Compare income and spending across ${selectedYear}.`
                     : "Track your daily net cashflow."}
                 </p>
               </div>
@@ -445,10 +523,12 @@ export default function Dashboard({ onSectionChange }) {
                 Average daily spending
               </p>
               <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-900">
-                {formatRupiah(monthlyBurn)}
+                {formatRupiah(summaryMode === "yearly" ? yearlyMonthlyAverage : monthlyBurn)}
               </p>
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Daily average for {periodLabel}.
+                {summaryMode === "yearly"
+                  ? `Average monthly spending in ${selectedYear}.`
+                  : `Daily average for ${periodLabel}.`}
               </p>
             </div>
 
@@ -491,13 +571,13 @@ export default function Dashboard({ onSectionChange }) {
               Expense ratio
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Compare your spending against income for this month.
+              Compare your spending against income for the selected {periodNoun}.
             </p>
           </div>
 
           <DoughnutChartComponent
-            income={income}
-            expenses={expenses}
+            income={summaryIncome}
+            expenses={summaryExpenses}
           />
         </section>
 
@@ -674,7 +754,10 @@ export default function Dashboard({ onSectionChange }) {
         subtitle="Record your income and expenses to keep your financial activity organized and up to date."
       >
         <AddTransaction
-          closeModal={() => setModalType(null)}
+          closeModal={() => {
+            setModalType(null);
+            fetchTransactionStats(selectedMonthNumber, selectedYear);
+          }}
         />
       </Modal>
 

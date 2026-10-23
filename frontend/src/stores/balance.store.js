@@ -8,14 +8,21 @@ export const useBalanceStore = create((set, get) => ({
   expenses: 0,
   transactions: [],
 
-  // Akumulasi Januari sampai bulan yang dipilih backend
+  // Akumulasi Januari sampai bulan yang dipilih
   yearToDate: {
     income: 0,
     expenses: 0,
     netCashflow: 0,
   },
 
-  // Periode aktif dari backend
+  // Total satu tahun penuh
+  yearlyTotal: {
+    income: 0,
+    expenses: 0,
+    netCashflow: 0,
+  },
+
+  // Periode aktif
   period: {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
@@ -41,10 +48,17 @@ export const useBalanceStore = create((set, get) => ({
     }
   },
 
-  // 2. Fetch statistik (Stat Cards & Bar Chart)
-  fetchTransactionStats: async () => {
+  // 2. Fetch statistik berdasarkan bulan dan tahun
+  // Tanpa parameter = periode sekarang
+  fetchTransactionStats: async (month, year) => {
     try {
+      const params = {};
+
+      if (month != null) params.month = month;
+      if (year != null) params.year = year;
+
       const response = await axiosInstance.get("/transactions/stats", {
+        params,
         withCredentials: true,
       });
 
@@ -58,6 +72,12 @@ export const useBalanceStore = create((set, get) => ({
           income: Number(data.yearToDate?.income) || 0,
           expenses: Number(data.yearToDate?.expenses) || 0,
           netCashflow: Number(data.yearToDate?.netCashflow) || 0,
+        },
+
+        yearlyTotal: {
+          income: Number(data.yearlyTotal?.income) || 0,
+          expenses: Number(data.yearlyTotal?.expenses) || 0,
+          netCashflow: Number(data.yearlyTotal?.netCashflow) || 0,
         },
 
         period: {

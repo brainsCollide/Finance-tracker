@@ -66,115 +66,145 @@ const updateTransactionSchema = Joi.object({
 });
 
 
+
 const getTransactionStats = async (req, res) => {
-    try {
-        const userId = new mongoose.Types.ObjectId(req.user.userId);
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1; // 1–12
+  try {
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
+    const now = new Date();
 
-        // Ambil transaksi tahun berjalan, lalu kelompokkan per bulan.
-        const monthlyStats = await Transaction.aggregate([
-            {
-                $match: {
-                    userId,
-                    date: {
-                        $gte: new Date(currentYear, 0, 1),
-                        $lt: new Date(currentYear + 1, 0, 1),
-                    },
-                },
+    // Gunakan periode dari query; default ke bulan dan tahun sekarang.
+    const requestedYear = Number(req.query.year);
+    const requestedMonth = Number(req.query.month);
+
+    const year =
+      Number.isInteger(requestedYear) &&
+      requestedYear >= 2000 &&
+      requestedYear <= 2100
+        ? requestedYear
+        : now.getFullYear();
+
+    const month =
+      Number.isInteger(requestedMonth) &&
+      requestedMonth >= 1 &&
+      requestedMonth <= 12
+        ? requestedMonth
+        : now.getMonth() + 1;
+
+    const yearStart = new Date(year, 0, 1);
+    const nextYearStart = new Date(year + 1, 0, 1);
+
+    // Ambil statistik setiap bulan pada tahun yang dipilih.
+    const monthlyStats = await Transaction.aggregate([
+      {
+        $match: {
+          userId,
+          date: {
+            $gte: yearStart,
+            $lt: nextYearStart,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { month: { $month: "$date" } },
+          totalIncome: {
+            $sum: {
+              $cond: [
+                { $eq: ["$type", "income"] },
+                "$amount",
+                0,
+              ],
             },
-            {
-                $group: {
-                    _id: { month: { $month: "$date" } },
-                    totalIncome: {
-                        $sum: {
-                            $cond: [
-                                { $eq: ["$type", "income"] },
-                                "$amount",
-                                0,
-                            ],
-                        },
-                    },
-                    totalExpenses: {
-                        $sum: {
-                            $cond: [
-                                { $eq: ["$type", "expense"] },
-                                "$amount",
-                                0,
-                            ],
-                        },
-                    },
-                },
+          },
+          totalExpenses: {
+            $sum: {
+              $cond: [
+                { $eq: ["$type", "expense"] },
+                "$amount",
+                0,
+              ],
             },
-            { $sort: { "_id.month": 1 } },
-        ]);
+          },
+        },
+      },
+      { $sort: { "_id.month": 1 } },
+    ]);
 
-        // Pastikan grafik selalu mendapat 12 bulan.
-        const formattedStats = Array.from({ length: 12 }, (_, i) => ({
-            month: i + 1,
-            totalIncome: 0,
-            totalExpenses: 0,
-        }));
+    // Selalu kembalikan 12 bulan, termasuk bulan tanpa transaksi.
+    const formattedStats = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      totalIncome: 0,
+      totalExpenses: 0,
+    }));
 
-        monthlyStats.forEach((entry) => {
-            const index = entry._id.month - 1;
+    monthlyStats.forEach((entry) => {
+      const index = entry._id.month - 1;
 
-            formattedStats[index] = {
-                month: entry._id.month,
-                totalIncome: entry.totalIncome || 0,
-                totalExpenses: entry.totalExpenses || 0,
-            };
-        });
+      formattedStats[index] = {
+        month: entry._id.month,
+        totalIncome: Number(entry.totalIncome) || 0,
+        totalExpenses: Number(entry.totalExpenses) || 0,
+      };
+    });
 
-        // Statistik bulan yang sedang berjalan.
-        const currentMonthStats = formattedStats[currentMonth - 1];
+    // Statistik bulan yang dipilih.
+    const selectedMonthStats = formattedStats[month - 1];
 
-        // Akumulasi dari Januari sampai bulan berjalan.
-        const yearToDateStats = formattedStats
-            .slice(0, currentMonth)
-            .reduce(
-                (totals, month) => ({
-                    income: totals.income + month.totalIncome,
-                    expenses: totals.expenses + month.totalExpenses,
-                }),
-                { income: 0, expenses: 0 }
-            );
+    // Akumulasi Januari sampai bulan yang dipilih.
+    const yearToDateStats = formattedStats
+      .slice(0, month)
+      .reduce(
+        (totals, item) => ({
+          income: totals.income + item.totalIncome,
+          expenses: totals.expenses + item.totalExpenses,
+        }),
+        { income: 0, expenses: 0 }
+      );
 
-        return res.json({
-            // Untuk kartu dashboard bulan berjalan.
-            income: currentMonthStats.totalIncome,
-            expenses: currentMonthStats.totalExpenses,
+    // Total untuk satu tahun penuh.
+    const yearlyTotal = formattedStats.reduce(
+      (totals, item) => ({
+        income: totals.income + item.totalIncome,
+        expenses: totals.expenses + item.totalExpenses,
+      }),
+      { income: 0, expenses: 0 }
+    );
 
-            // Untuk grafik tahunan.
-            monthlyStats: formattedStats,
+    return res.json({
+      // Mengikuti bulan yang dipilih.
+      income: selectedMonthStats.totalIncome,
+      expenses: selectedMonthStats.totalExpenses,
 
-            // Untuk ringkasan kumulatif.
-            yearToDate: {
-                income: yearToDateStats.income,
-                expenses: yearToDateStats.expenses,
-                netCashflow:
-                    yearToDateStats.income - yearToDateStats.expenses,
-            },
+      // Grafik 12 bulan untuk tahun yang dipilih.
+      monthlyStats: formattedStats,
 
-            // Metadata periode agar frontend tahu cakupan datanya.
-            period: {
-                year: currentYear,
-                month: currentMonth,
-            },
-        });
-    } catch (error) {
-        console.error(
-            "Error fetching transaction stats:",
-            error.message
-        );
+      // Januari sampai bulan yang dipilih.
+      yearToDate: {
+        income: yearToDateStats.income,
+        expenses: yearToDateStats.expenses,
+        netCashflow:
+          yearToDateStats.income - yearToDateStats.expenses,
+      },
 
-        return res.status(500).json({
-            message: "Error fetching transaction stats",
-            error: error.message,
-        });
-    }
+      // Total Januari sampai Desember.
+      yearlyTotal: {
+        income: yearlyTotal.income,
+        expenses: yearlyTotal.expenses,
+        netCashflow: yearlyTotal.income - yearlyTotal.expenses,
+      },
+
+      period: { year, month },
+    });
+  } catch (error) {
+    console.error("Error fetching transaction stats:", error.message);
+
+    return res.status(500).json({
+      message: "Error fetching transaction stats",
+      error: error.message,
+    });
+  }
 };
+
 
 // Get all transactions (Only for logged-in user)
 const getAllTransaction = async (req, res) => {

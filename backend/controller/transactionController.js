@@ -65,59 +65,114 @@ const updateTransactionSchema = Joi.object({
   'object.min': 'At least one field is required for update'
 });
 
+
 const getTransactionStats = async (req, res) => {
     try {
         const userId = new mongoose.Types.ObjectId(req.user.userId);
-        console.log("Fetching stats for user:", userId);
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1; // 1–12
 
-        // ✅ Aggregate transactions and ensure `_id.month` is extracted properly
+        // Ambil transaksi tahun berjalan, lalu kelompokkan per bulan.
         const monthlyStats = await Transaction.aggregate([
-            { 
-                $match: { 
-                    userId: userId,
-                    date: { 
-                        $gte: new Date(new Date().getFullYear(), 0, 1), // Start of the year
-                        $lte: new Date(new Date().getFullYear(), 11, 31, 23, 59, 59) // End of the year
-                    } 
-                }
+            {
+                $match: {
+                    userId,
+                    date: {
+                        $gte: new Date(currentYear, 0, 1),
+                        $lt: new Date(currentYear + 1, 0, 1),
+                    },
+                },
             },
             {
                 $group: {
-                    _id: { month: { $month: "$date" } }, // ✅ Extract only month number (1-12)
-                    totalIncome: { $sum: { $cond: [{ $eq: ["$type", "income"] }, "$amount", 0] } },
-                    totalExpenses: { $sum: { $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0] } }
-                }
+                    _id: { month: { $month: "$date" } },
+                    totalIncome: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ["$type", "income"] },
+                                "$amount",
+                                0,
+                            ],
+                        },
+                    },
+                    totalExpenses: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ["$type", "expense"] },
+                                "$amount",
+                                0,
+                            ],
+                        },
+                    },
+                },
             },
-            { $sort: { "_id.month": 1 } } // ✅ Ensure correct month order
+            { $sort: { "_id.month": 1 } },
         ]);
 
-        // ✅ Transform response format to match frontend expectation
+        // Pastikan grafik selalu mendapat 12 bulan.
         const formattedStats = Array.from({ length: 12 }, (_, i) => ({
-            month: i + 1, // ✅ Convert from `_id.month` to `month`
+            month: i + 1,
             totalIncome: 0,
             totalExpenses: 0,
         }));
 
-        // ✅ Merge aggregated results into formattedStats
         monthlyStats.forEach((entry) => {
-            const monthIndex = entry._id.month - 1; // Convert (1-12) to (0-11) index
-            formattedStats[monthIndex] = {
-                month: entry._id.month, // ✅ Now directly mapped as `month`
+            const index = entry._id.month - 1;
+
+            formattedStats[index] = {
+                month: entry._id.month,
                 totalIncome: entry.totalIncome || 0,
                 totalExpenses: entry.totalExpenses || 0,
             };
         });
 
-        console.log("✅ Final Monthly Stats:", formattedStats);
+        // Statistik bulan yang sedang berjalan.
+        const currentMonthStats = formattedStats[currentMonth - 1];
 
-        res.json({
-            income: monthlyStats.reduce((sum, m) => sum + (m.totalIncome || 0), 0),
-            expenses: monthlyStats.reduce((sum, m) => sum + (m.totalExpenses || 0), 0),
-            monthlyStats: formattedStats // ✅ Now formatted correctly
+        // Akumulasi dari Januari sampai bulan berjalan.
+        const yearToDateStats = formattedStats
+            .slice(0, currentMonth)
+            .reduce(
+                (totals, month) => ({
+                    income: totals.income + month.totalIncome,
+                    expenses: totals.expenses + month.totalExpenses,
+                }),
+                { income: 0, expenses: 0 }
+            );
+
+        return res.json({
+            // Untuk kartu dashboard bulan berjalan.
+            income: currentMonthStats.totalIncome,
+            expenses: currentMonthStats.totalExpenses,
+
+            // Untuk grafik tahunan.
+            monthlyStats: formattedStats,
+
+            // Untuk ringkasan kumulatif.
+            yearToDate: {
+                income: yearToDateStats.income,
+                expenses: yearToDateStats.expenses,
+                netCashflow:
+                    yearToDateStats.income - yearToDateStats.expenses,
+            },
+
+            // Metadata periode agar frontend tahu cakupan datanya.
+            period: {
+                year: currentYear,
+                month: currentMonth,
+            },
         });
     } catch (error) {
-        console.error("❌ Error fetching transaction stats:", error.message);
-        res.status(500).json({ message: "Error fetching transaction stats", error: error.message });
+        console.error(
+            "Error fetching transaction stats:",
+            error.message
+        );
+
+        return res.status(500).json({
+            message: "Error fetching transaction stats",
+            error: error.message,
+        });
     }
 };
 

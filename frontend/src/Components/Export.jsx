@@ -204,11 +204,11 @@ const Export = () => {
               <span>Data Center</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight italic uppercase">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
               Export Transactions
             </h1>
 
-            <p className="text-slate-500 font-medium">
+            <p className="text-slate-500 font-light">
               Download and backup your financial activities
             </p>
           </div>

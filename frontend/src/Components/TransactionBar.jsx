@@ -78,10 +78,10 @@ const TransactionBar = ({ onSectionChange }) => {
               </span>
               <span>Live Ledger</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight italic uppercase">
+            <h1 className="text-3xl sm:text-4xl text-slate-900 font-semibold tracking-tight">
               Transaction History
             </h1>
-            <p className="text-slate-500 font-medium">Monitoring your flow of {transactions.length} activities</p>
+            <p className="text-slate-500 font-light">Monitoring your flow of {transactions.length} activities</p>
           </div>
 
           {/* Quick Stats Summary */}

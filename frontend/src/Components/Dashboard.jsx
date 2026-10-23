@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle } from "lucide-react";
 import AddTransaction from "./Widgets/AddTransaction";
-import StatCard from "./props/StatCard";
 import UpcomingPayment from "./Widgets/UpcomingPayment";
 import Modal from "./Widgets/Modal";
 import BarChartComponent from "./Charts/BarChart";
 import DoughnutChartComponent from "./Charts/DoughnutChart";
 import { useAuthStore } from "../stores/auth.store";
-import {
-  IoMdCheckmark,
-} from "react-icons/io";
+import { IoMdCheckmark } from "react-icons/io";
 import SavingsRateBadge from "./Badges/SavingsRateBadge";
 
 import {
@@ -31,46 +28,65 @@ import { toast, ToastContainer } from "react-toastify";
 export default function Dashboard({ onSectionChange }) {
   const [modalType, setModalType] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [chartMode, setChartMode] = useState("monthly");
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().getMonth()
+  );
+  const [selectedYear, setSelectedYear] = useState(
+    new Date().getFullYear()
+  );
+
   const { user, fetchUser } = useAuthStore();
 
-  // Zustand Stores
   const {
-    income,
-    expenses,
-    monthlyStats,
+    income = 0,
+    expenses = 0,
+    monthlyStats = [],
+    transactions = [],
+    yearToDate,
+    period,
     fetchTransactionStats,
+    fetchTransactions,
   } = useBalanceStore();
 
   const {
-    upcomingPayments,
+    upcomingPayments = [],
     fetchUpcomingPayments,
     markAsPaid,
   } = usePaymentStore();
 
   const {
-    budgets,
+    budgets = [],
     fetchBudgets,
   } = useBudgetStore();
 
+  // Net cashflow = income - expenses.
   const balance = income - expenses;
 
   const initDashboard = useCallback(async () => {
     try {
       setIsLoading(true);
-
       await fetchUser();
 
       await Promise.all([
         fetchTransactionStats(),
+        fetchTransactions(),
         fetchUpcomingPayments(),
         fetchBudgets(),
       ]);
     } catch (error) {
-      console.error(error);
+      console.error("Failed to initialize dashboard:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [fetchTransactionStats, fetchUpcomingPayments, fetchBudgets, fetchUser]);
+  }, [
+    fetchTransactionStats,
+    fetchTransactions,
+    fetchUpcomingPayments,
+    fetchBudgets,
+    fetchUser,
+  ]);
 
   useEffect(() => {
     initDashboard();
@@ -79,34 +95,66 @@ export default function Dashboard({ onSectionChange }) {
   const handleMarkPaid = async (id, amount) => {
     try {
       await markAsPaid(id, amount);
+
+      await Promise.all([
+        fetchTransactionStats(),
+        fetchTransactions(),
+        fetchBudgets(),
+      ]);
+
       toast.success("Pembayaran berhasil dibayar");
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error("Gagal menandai pembayaran");
     }
   };
 
-  // --- DUMMY INSIGHTS ---
   const savingsRate =
     income > 0
-      ? Math.max(((balance / income) * 100).toFixed(0), 0)
+      ? Number(((balance / income) * 100).toFixed(1))
       : 0;
 
+  const today = new Date();
+
+  const activeYear = Number(period?.year) || today.getFullYear();
+  const activeMonth = Number(period?.month) || today.getMonth() + 1;
+
+  const daysElapsed =
+    activeYear === today.getFullYear() &&
+    activeMonth === today.getMonth() + 1
+      ? today.getDate()
+      : new Date(activeYear, activeMonth, 0).getDate();
+
   const monthlyBurn =
-    expenses > 0
-      ? Math.round(expenses / 30)
+    daysElapsed > 0
+      ? Math.round(expenses / daysElapsed)
       : 0;
 
   const activeBudgets = budgets.length;
-
   const recurringBills = upcomingPayments.length;
+
+  const yearToDateNet =
+    Number(yearToDate?.netCashflow) || 0;
+
+  const periodLabel = new Date(
+    activeYear,
+    activeMonth - 1,
+    1
+  ).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const formatRupiah = (amount) =>
+    `Rp ${Number(amount || 0).toLocaleString("id-ID")}`;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FA]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-slate-500 font-medium">
-            Syncing your financial data...
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" />
+          <p className="mt-4 text-sm text-slate-500">
+            Loading your financial overview...
           </p>
         </div>
       </div>
@@ -114,199 +162,336 @@ export default function Dashboard({ onSectionChange }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-8 md:p-12">
+    <div className="min-h-screen bg-[#F7F8FA] px-4 py-6 sm:px-6 lg:px-10 lg:py-9">
       <ToastContainer
         position="top-right"
         autoClose={3000}
         theme="light"
       />
 
-      {/* --- HEADER --- */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 mb-10">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-            <FiActivity />
-            Financial Overview
-          </div>
+      <div className="mx-auto max-w-[1600px] space-y-7">
 
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight italic uppercase">
-            Dashboard <span className="text-blue-600">.</span>
-          </h1>
-
-          <p className="text-slate-500 font-medium">
-            Welcome back,{" "}
-            <span className="font-bold text-slate-800">
-              {user?.username || "Chief"}
-            </span>
-            ! Here's your financial overview today.
-          </p>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={() => setModalType("transaction")}
-            className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-6 py-3.5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-blue-600 transition-all shadow-xl active:scale-95 text-sm"
-          >
-            <PlusCircle
-              className="transition-transform group-hover:rotate-90 duration-500"
-              size={20}
-            />
-            <span>Transaction</span>
-          </button>
-
-          <button
-            onClick={() => setModalType("upcoming")}
-            className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-6 py-3.5 bg-white text-slate-900 border border-slate-200 font-bold rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95 text-sm"
-          >
-            <PlusCircle
-              className="transition-transform group-hover:rotate-90 duration-500"
-              size={20}
-            />
-            <span>Payment</span>
-          </button>
-        </div>
-      </div>
-
-      {/* --- PRIMARY STATS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <StatCard
-          title="Income"
-          icon={FiTrendingUp}
-          value={`Rp ${income.toLocaleString("id-ID")}`}
-          accentColor="emerald"
-        />
-
-        <StatCard
-          title="Expenses"
-          icon={FiTrendingDown}
-          value={`Rp ${expenses.toLocaleString("id-ID")}`}
-          accentColor="rose"
-        />
-
-        <StatCard
-          title="Balance"
-          icon={FiPocket}
-          value={`Rp ${balance.toLocaleString("id-ID")}`}
-          accentColor="blue"
-        />
-      </div>
-
-      {/* --- SMART INSIGHTS (NEW SAAS FEEL) --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-10">
-
-        {/* Savings Rate */}
-        <SavingsRateBadge savingsRate={savingsRate} />
-
-        {/* Daily Burn */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
-          <div className="flex items-center justify-between mb-5">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center">
-              <FiTrendingDown size={22} />
+        {/* HEADER */}
+        <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-blue-600">
+              <span className="h-2 w-2 rounded-full bg-blue-600" />
+              FINANCIAL OVERVIEW
             </div>
 
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Daily
-            </span>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Dashboard
+            </h1>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Welcome back,{" "}
+              <span className="font-semibold text-slate-800">
+                {user?.username || "Chief"}
+              </span>
+              . Here's your financial overview.
+            </p>
           </div>
 
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-            Average Spend
-          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setModalType("transaction")}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-600 sm:flex-none"
+            >
+              <PlusCircle size={18} />
+              Transaction
+            </button>
 
-          <h2 className="text-3xl font-black text-slate-900">
-            Rp {monthlyBurn.toLocaleString("id-ID")}
-          </h2>
-
-          <p className="text-sm text-slate-500 mt-2">
-            Estimated spending per day this month.
-          </p>
-        </div>
-
-        {/* Active Budgets */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
-          <div className="flex items-center justify-between mb-5">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <FiTarget size={22} />
-            </div>
-
-            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">
-              Active
-            </span>
+            <button
+              type="button"
+              onClick={() => setModalType("upcoming")}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:flex-none"
+            >
+              <PlusCircle size={18} />
+              Payment
+            </button>
           </div>
+        </header>
 
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-            Budget Plans
-          </p>
-
-          <h2 className="text-3xl font-black text-slate-900">
-            {activeBudgets}
-          </h2>
-
-          <p className="text-sm text-slate-500 mt-2">
-            Budget categories currently monitored.
-          </p>
-        </div>
-
-        {/* Upcoming Bills */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 hover:shadow-lg transition-all group">
-          <div className="flex items-center justify-between mb-5">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
-              <FiCreditCard size={22} />
-            </div>
-
-            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">
-              Scheduled
-            </span>
-          </div>
-
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-            Upcoming Bills
-          </p>
-
-          <h2 className="text-3xl font-black text-slate-900">
-            {recurringBills}
-          </h2>
-
-          <p className="text-sm text-slate-500 mt-2">
-            Payments waiting to be completed.
-          </p>
-        </div>
-      </div>
-
-      {/* --- CHARTS --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-
-        {/* CASHFLOW */}
-        <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
-          <div className="flex items-center justify-between mb-6">
+        {/* PRIMARY FINANCIAL SUMMARY */}
+        <section>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-xl font-black text-slate-900 uppercase italic">
-                Cashflow Analytics
+              <h2 className="text-base font-semibold text-slate-900">
+                Financial summary
               </h2>
-
-              <p className="text-sm text-slate-500 mt-1">
-                Monitor your income and spending trends.
+              <p className="mt-1 text-sm text-slate-500">
+                Your numbers for {periodLabel}
               </p>
             </div>
 
-            <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-              Live Data
+            <span className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500">
+              Monthly overview
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+            {/* Main metric */}
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm sm:p-8 xl:col-span-5">
+              <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl" />
+
+              <div className="relative">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-slate-500">
+                    Net cashflow
+                  </p>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0156d6]">
+                    <FiPocket size={19} />
+                  </div>
+                </div>
+
+                <p className="mt-5 break-words text-3xl font-semibold tracking-tight text-[#0156d6] sm:text-4xl">
+                  {formatRupiah(balance)}
+                </p>
+
+                <p className="mt-3 text-sm text-slate-500">
+                  Income minus expenses for this month.
+                </p>
+
+                <div className="mt-7 border-t border-slate-100 pt-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-slate-500">
+                        Year-to-date net
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-slate-800">
+                        {formatRupiah(yearToDateNet)}
+                      </p>
+                    </div>
+
+                    <div
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
+                        balance >= 0
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-rose-50 text-rose-700"
+                      }`}
+                    >
+                      {balance >= 0 ? (
+                        <FiTrendingUp size={15} />
+                      ) : (
+                        <FiTrendingDown size={15} />
+                      )}
+                      {balance >= 0 ? "Positive" : "Negative"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Supporting metrics */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-7">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <FiTrendingUp size={19} />
+                  </div>
+                  <span className="text-xs font-medium text-slate-400">
+                    This month
+                  </span>
+                </div>
+
+                <p className="mt-5 text-sm font-medium text-slate-500">
+                  Total income
+                </p>
+                <p className="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-900">
+                  {formatRupiah(income)}
+                </p>
+                <p className="mt-2 text-xs text-slate-400">
+                  Money received this month
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                    <FiTrendingDown size={19} />
+                  </div>
+                  <span className="text-xs font-medium text-slate-400">
+                    This month
+                  </span>
+                </div>
+
+                <p className="mt-5 text-sm font-medium text-slate-500">
+                  Total expenses
+                </p>
+                <p className="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-900">
+                  {formatRupiah(expenses)}
+                </p>
+                <p className="mt-2 text-xs text-slate-400">
+                  Money spent this month
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CASHFLOW ANALYTICS */}
+        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
+          <div className="border-b border-slate-100 p-5 sm:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Cashflow analytics
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {chartMode === "monthly"
+                    ? "Compare income and spending across the year."
+                    : "Track your daily net cashflow."}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center rounded-lg bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setChartMode("monthly")}
+                    className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+                      chartMode === "monthly"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Monthly
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setChartMode("daily")}
+                    className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+                      chartMode === "daily"
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Daily
+                  </button>
+                </div>
+
+                {chartMode === "daily" && (
+                  <input
+                    type="month"
+                    value={`${selectedYear}-${String(
+                      selectedMonth + 1
+                    ).padStart(2, "0")}`}
+                    onChange={(event) => {
+                      if (!event.target.value) return;
+
+                      const [year, month] = event.target.value
+                        .split("-")
+                        .map(Number);
+
+                      setSelectedYear(year);
+                      setSelectedMonth(month - 1);
+                    }}
+                    className="min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                )}
+              </div>
             </div>
           </div>
 
-          <BarChartComponent monthlyStats={monthlyStats} />
-        </div>
+          <div className="p-4 sm:p-6">
+            <BarChartComponent
+              monthlyStats={monthlyStats}
+              transactions={transactions}
+              mode={chartMode}
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
+            />
+
+            {chartMode === "daily" && (
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+                  Income greater than or equal to expenses
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-sm bg-rose-500" />
+                  Expenses greater than income
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* INSIGHTS */}
+        <section>
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-slate-900">
+              Spending insights
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              A quick look at your saving habits and financial commitments.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+            <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5">
+              <SavingsRateBadge savingsRate={savingsRate} />
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <FiTrendingDown size={19} />
+              </div>
+              <p className="mt-4 text-sm font-medium text-slate-500">
+                Average daily spending
+              </p>
+              <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-900">
+                {formatRupiah(monthlyBurn)}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Daily average for {periodLabel}.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <FiTarget size={19} />
+              </div>
+              <p className="mt-4 text-sm font-medium text-slate-500">
+                Budget plans
+              </p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                {activeBudgets}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Budget categories being monitored.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <FiCreditCard size={19} />
+              </div>
+              <p className="mt-4 text-sm font-medium text-slate-500">
+                Upcoming bills
+              </p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                {recurringBills}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Payments awaiting completion.
+              </p>
+            </div>
+          </div>
+        </section>
 
         {/* EXPENSE RATIO */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
-          <div className="mb-6">
-            <h2 className="text-xl font-black text-slate-900 uppercase italic">
-              Expense Ratio
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Expense ratio
             </h2>
-
-            <p className="text-sm text-slate-500 mt-1">
-              Compare your spending against total income.
+            <p className="mt-1 text-sm text-slate-500">
+              Compare your spending against income for this month.
             </p>
           </div>
 
@@ -314,173 +499,181 @@ export default function Dashboard({ onSectionChange }) {
             income={income}
             expenses={expenses}
           />
-        </div>
-      </div>
+        </section>
 
-      {/* --- BOTTOM SECTION --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* BILLS & BUDGETS */}
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
 
-        {/* UPCOMING PAYMENTS */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-xl font-black text-slate-900 uppercase italic flex items-center gap-2">
-                <FiCalendar className="text-rose-500" />
-                Bills
-              </h2>
-
-              <p className="text-sm text-slate-500 mt-1">
-                Your nearest scheduled payments.
-              </p>
-            </div>
-
-            <button
-              onClick={() => onSectionChange("Payments")}
-              className="text-blue-600 p-2 hover:bg-blue-50 rounded-full transition-all"
-            >
-              <FiChevronRight size={24} />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {upcomingPayments.length > 0 ? (
-              upcomingPayments.slice(0, 3).map((payment) => (
-                <div
-                  key={payment._id}
-                  className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-colors shadow-sm">
-                      <FiCalendar size={18} />
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-bold text-slate-900 truncate max-w-[120px] sm:max-w-[200px]">
-                        {payment.title}
-                      </p>
-
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Due{" "}
-                        {new Date(payment.dueDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-black text-rose-500">
-                      Rp {payment.amount.toLocaleString("id-ID")}
-                    </span>
-
-                    <button
-                      onClick={() =>
-                        handleMarkPaid(payment._id, payment.amount)
-                      }
-                      className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all"
-                    >
-                      <IoMdCheckmark size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-10">
-                <p className="text-slate-400 text-sm font-medium italic">
-                  All bills are paid!
+          {/* UPCOMING PAYMENTS */}
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <FiCalendar className="text-slate-500" size={19} />
+                  Upcoming payments
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Your nearest scheduled payments.
                 </p>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* BUDGET TRACKER */}
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-xl font-black text-slate-900 uppercase italic flex items-center gap-2">
-                <FiTarget className="text-blue-600" />
-                Budgets
-              </h2>
-
-              <p className="text-sm text-slate-500 mt-1">
-                Monitor spending limits across categories.
-              </p>
+              <button
+                type="button"
+                onClick={() => onSectionChange("Payments")}
+                aria-label="View all payments"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                <FiChevronRight size={21} />
+              </button>
             </div>
 
-            <button
-              onClick={() => onSectionChange("Budgets")}
-              className="text-blue-600 p-2 hover:bg-blue-50 rounded-full transition-all"
-            >
-              <FiChevronRight size={24} />
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            {budgets.length > 0 ? (
-              budgets.slice(0, 4).map((budget) => {
-                const percentage = Math.min(
-                  (budget.spent / budget.limit) * 100,
-                  100
-                );
-
-                return (
+            <div className="space-y-3">
+              {upcomingPayments.length > 0 ? (
+                upcomingPayments.slice(0, 3).map((payment) => (
                   <div
-                    key={budget._id}
-                    className="space-y-2"
+                    key={payment._id}
+                    className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-slate-200 sm:p-4"
                   >
-                    <div className="flex justify-between items-end">
-                      <span className="text-sm font-bold text-slate-700 capitalize">
-                        {budget.category}
-                      </span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
+                        <FiCalendar size={17} />
+                      </div>
 
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {percentage.toFixed(0)}% Used
-                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800">
+                          {payment.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          Due{" "}
+                          {new Date(payment.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5">
-                      <div
-                        className={`h-full rounded-full transition-all duration-1000 ${
-                          percentage > 90
-                            ? "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]"
-                            : "bg-blue-600"
-                        }`}
-                        style={{
-                          width: `${percentage}%`,
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                      <span>
-                        Rp {budget.spent.toLocaleString()}
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                      <span className="text-xs font-semibold text-slate-800 sm:text-sm">
+                        {formatRupiah(payment.amount)}
                       </span>
 
-                      <span>
-                        Limit: Rp {budget.limit.toLocaleString()}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleMarkPaid(payment._id, payment.amount)
+                        }
+                        aria-label={`Mark ${payment.title} as paid`}
+                        className="rounded-lg bg-emerald-50 p-2 text-emerald-600 transition hover:bg-emerald-600 hover:text-white"
+                      >
+                        <IoMdCheckmark size={17} />
+                      </button>
                     </div>
                   </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-10 border-2 border-dashed border-slate-50 rounded-3xl">
-                <p className="text-slate-400 text-sm font-medium italic">
-                  No budgets defined yet.
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
+                  <p className="text-sm text-slate-500">
+                    No upcoming payments.
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    You're all caught up.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* BUDGET TRACKER */}
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <FiTarget className="text-slate-500" size={19} />
+                  Budget tracker
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Spending progress across your categories.
                 </p>
               </div>
-            )}
+
+              <button
+                type="button"
+                onClick={() => onSectionChange("Budgets")}
+                aria-label="View all budgets"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                <FiChevronRight size={21} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {budgets.length > 0 ? (
+                budgets.slice(0, 4).map((budget) => {
+                  const percentage =
+                    budget.limit > 0
+                      ? Math.min(
+                          (budget.spent / budget.limit) * 100,
+                          100
+                        )
+                      : 0;
+
+                  return (
+                    <div key={budget._id} className="space-y-2">
+                      <div className="flex items-end justify-between gap-3">
+                        <span className="text-sm font-medium capitalize text-slate-700">
+                          {budget.category}
+                        </span>
+
+                        <span
+                          className={`shrink-0 text-xs font-semibold ${
+                            percentage > 90
+                              ? "text-rose-600"
+                              : "text-slate-500"
+                          }`}
+                        >
+                          {percentage.toFixed(0)}% used
+                        </span>
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            percentage > 90
+                              ? "bg-rose-500"
+                              : "bg-blue-600"
+                          }`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+
+                      <div className="flex justify-between gap-3 text-xs text-slate-400">
+                        <span>{formatRupiah(budget.spent)}</span>
+                        <span>Limit: {formatRupiah(budget.limit)}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
+                  <p className="text-sm text-slate-500">
+                    No budgets defined yet.
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Create a budget to start tracking your spending.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* --- MODALS --- */}
+      {/* MODALS */}
       <Modal
         isOpen={modalType === "transaction"}
         onClose={() => setModalType(null)}
         title="Add Transaction"
         subtitle="Record your income and expenses to keep your financial activity organized and up to date."
       >
-        <AddTransaction 
+        <AddTransaction
           closeModal={() => setModalType(null)}
         />
       </Modal>

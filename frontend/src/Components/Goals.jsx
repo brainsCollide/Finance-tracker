@@ -71,12 +71,12 @@ const Goals = () => {
               Future Planning
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight italic uppercase">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900 ">
               Financial Goals{" "}
               <span className="text-amber-500">.</span>
             </h1>
 
-            <p className="text-slate-500 font-medium">
+            <p className="text-slate-500 font-light">
               Turning your dreams into achievable milestones.
             </p>
           </div>

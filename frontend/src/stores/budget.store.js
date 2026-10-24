@@ -1,119 +1,99 @@
+
 import { create } from "zustand";
 import axiosInstance from "../api/axiosInstance";
 
-export const useBudgetStore = create((set, get) => ({
+export const useBudgetStore = create((set) => ({
   budgets: [],
   isLoadingBudgets: false,
+  error: null,
 
-  // ─────────────────────────────
-  // FETCH + ENRICH DATA
-  // ─────────────────────────────
+  // Fetch budget beserta spent yang sudah dihitung backend.
   fetchBudgets: async () => {
-    set({ isLoadingBudgets: true });
+    set({
+      isLoadingBudgets: true,
+      error: null,
+    });
 
     try {
-      const [budgetsRes, transRes] = await Promise.all([
-        axiosInstance.get("/budgets"),
-        axiosInstance.get("/transactions"),
-      ]);
+      const response = await axiosInstance.get("/budgets");
 
-      const budgets = Array.isArray(budgetsRes.data)
-        ? budgetsRes.data
+      const budgets = Array.isArray(response.data)
+        ? response.data
         : [];
 
-      const transactions = transRes.data || [];
-
-      // hitung spent per category
-      const spentByCategory = transactions.reduce((acc, tx) => {
-        if (tx.type === "expense" && tx.category) {
-          const key = tx.category.toLowerCase();
-
-          acc[key] =
-            (acc[key] || 0) + Number(tx.amount || 0);
-        }
-
-        return acc;
-      }, {});
-
-      const enriched = budgets.map((b) => {
-        const spent =
-          spentByCategory[b.category?.toLowerCase()] || 0;
-
-        const limit = Number(b.limit) || 0;
-
-        return {
-          ...b,
-          spent,
-          percentage:
-            limit > 0 ? (spent / limit) * 100 : 0,
-        };
+      set({
+        budgets,
+        error: null,
       });
-
-      set({ budgets: enriched });
     } catch (err) {
-      console.error("fetchBudgets error:", err);
+      console.error(
+        "fetchBudgets error:",
+        err.response?.data?.message || err.message
+      );
 
-      set({ budgets: [] });
+      set({
+        error:
+          err.response?.data?.message ||
+          "Failed to load budgets. Please try again.",
+      });
     } finally {
       set({ isLoadingBudgets: false });
     }
   },
 
-  // ─────────────────────────────
-  // CREATE
-  // ─────────────────────────────
+  // Tambah budget ke state lokal.
   addBudget: (budget) => {
     set((state) => ({
       budgets: [budget, ...state.budgets],
     }));
   },
 
-  // ─────────────────────────────
-  // UPDATE
-  // ─────────────────────────────
+  // Update budget di state lokal.
   updateBudget: (updated) => {
     set((state) => ({
-      budgets: state.budgets.map((b) =>
-        b._id === updated._id
-          ? { ...b, ...updated }
-          : b
+      budgets: state.budgets.map((budget) =>
+        budget._id === updated._id
+          ? { ...budget, ...updated }
+          : budget
       ),
     }));
   },
 
-  upsertBudget: (budget) =>
-  set((state) => {
-    const exists = state.budgets.find(b => b._id === budget._id);
+  // Tambah atau update budget setelah disimpan.
+  upsertBudget: (budget) => {
+    set((state) => {
+      const exists = state.budgets.some(
+        (item) => item._id === budget._id
+      );
 
-    if (exists) {
       return {
-        budgets: state.budgets.map(b =>
-          b._id === budget._id ? budget : b
-        ),
+        budgets: exists
+          ? state.budgets.map((item) =>
+              item._id === budget._id
+                ? { ...item, ...budget }
+                : item
+            )
+          : [budget, ...state.budgets],
       };
-    }
+    });
+  },
 
-    return {
-      budgets: [budget, ...state.budgets],
-    };
-  }),
-
-  // ─────────────────────────────
-  // DELETE FROM DATABASE + UI
-  // ─────────────────────────────
+  // Delete di backend terlebih dahulu, lalu update UI.
   deleteBudget: async (id) => {
     try {
-      // delete di backend
       await axiosInstance.delete(`/budgets/${id}`);
 
-      // update UI local
       set((state) => ({
         budgets: state.budgets.filter(
-          (b) => b._id !== id
+          (budget) => budget._id !== id
         ),
       }));
     } catch (err) {
-      console.error("deleteBudget error:", err);
+      console.error(
+        "deleteBudget error:",
+        err.response?.data?.message || err.message
+      );
+
       throw err;
     }
   },

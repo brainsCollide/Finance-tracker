@@ -1,36 +1,49 @@
-const User = require('../models/User');
 
+const mongoose = require('mongoose');
+const User = require('../models/User');
 
 const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ message: 'Invalid User ID' });
+            return res.status(400).json({
+                message: 'Invalid User ID',
+            });
         }
 
-        const user = await User.findById(id);
+        // Defense in depth: users can only access their own profile.
+        if (String(req.user?.userId) !== String(id)) {
+            return res.status(403).json({
+                message: 'Forbidden: You cannot access this user',
+            });
+        }
+
+        const user = await User.findById(id)
+            .select('email username createdAt')
+            .lean();
 
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({
+                message: 'User not found',
+            });
         }
 
-        res.json(user); 
+        return res.json({
+            _id: user._id,
+            email: user.email,
+            username: user.username ?? null,
+            createdAt: user.createdAt,
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('Failed to fetch user profile:', error.message);
+
+        return res.status(500).json({
+            message: 'Internal server error',
+        });
     }
 };
 
-const getAllUsers = async (req, res) => {
-    try {
-        const users = await User.find().select('-password');
-        res.json(users);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-}
-
 module.exports = {
     getUserById,
-    getAllUsers
 };

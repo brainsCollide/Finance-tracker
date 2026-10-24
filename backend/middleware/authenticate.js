@@ -1,3 +1,4 @@
+
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -7,28 +8,42 @@ if (!JWT_SECRET) {
 }
 
 const authenticate = (req, res, next) => {
-    console.log("🔍 Incoming Request Headers:", req.headers);
-    console.log("🔍 Incoming Cookies:", req.cookies);
+    const cookieToken = req.cookies?.token;
+    const authHeader = req.headers.authorization;
 
-    const token = req.cookies.token || null;
+    let token = cookieToken || null;
 
-    if (!token && req.headers.authorization) {
-        token = req.headers.authorization.split(" ")[1];
+    // Fallback to Authorization: Bearer <token>
+    if (!token && authHeader) {
+        const match = authHeader.match(/^Bearer\s+(\S+)$/i);
+
+        if (!match) {
+            return res.status(401).json({
+                message: 'Unauthorized: Invalid authorization format',
+            });
+        }
+
+        token = match[1];
     }
 
     if (!token) {
-        console.log("❌ No Token Provided!");
-        return res.status(401).json({ message: "❌ Unauthorized: No token provided" });
+        return res.status(401).json({
+            message: 'Unauthorized: No token provided',
+        });
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        console.log("✅ Token Verified:", decoded);
+        const decoded = jwt.verify(token, JWT_SECRET, {
+            algorithms: ['HS256'],
+        });
+
         req.user = decoded;
-        next();
-    } catch (error) {
-        console.error("❌ Token Verification Error:", error.message);
-        return res.status(401).json({ message: "❌ Unauthorized: Invalid or expired token" });
+
+        return next();
+    } catch {
+        return res.status(401).json({
+            message: 'Unauthorized: Invalid or expired token',
+        });
     }
 };
 

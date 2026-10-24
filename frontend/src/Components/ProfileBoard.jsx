@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
+import FloatingBubbles from "../Components/FloatingBubbles";
 import T from "../assets/letter-t.svg";
 
 const validatePassword = (password) => ({
@@ -116,8 +117,9 @@ const ProfileBoard = () => {
   }
 
   return (
-    <div className="p-6 sm:p-10 min-h-screen flex flex-col justify-center items-center">
-      <div className="w-full sm:max-w-md">
+    <div className="relative isolate min-h-screen overflow-hidden bg-[#f8fbff] px-6 py-10 flex flex-col justify-center items-center">
+      <FloatingBubbles />
+      <div className="relative z-10 w-full sm:max-w-md">
         <div className="w-full flex justify-center mb-4">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <img src={T} alt="Logo" className="w-6 h-6 invert" />

@@ -46,6 +46,6 @@ const recurringPaymentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-recurringPaymentSchema.index({ userId: 1, name: 1 }, { unique: true });
+recurringPaymentSchema.index({ userId: 1, name: 1 });
 
 module.exports = mongoose.model("RecurringPayment", recurringPaymentSchema);

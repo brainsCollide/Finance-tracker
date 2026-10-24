@@ -1,74 +1,145 @@
+
 const Joi = require("joi");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const sendEmail = require("../utils/sendEmail");
 
-const isProduction =
-  process.env.NODE_ENV === "production" &&
-  process.env.HOST_ENV === "production";
-
 const JWT_SECRET = process.env.JWT_SECRET;
+const CLIENT_URL = process.env.CLIENT_URL;
 
+const isProduction = process.env.NODE_ENV === "production";
+
+// Fail fast if required configuration is missing.
 if (!JWT_SECRET) {
-  throw new Error("❌ JWT_SECRET is not defined in environment variables");
+  throw new Error("JWT_SECRET is not configured");
 }
 
-console.log("✅ JWT_SECRET Loaded");
+if (!CLIENT_URL) {
+  throw new Error("CLIENT_URL is not configured");
+}
+
+const SESSION_DURATION_MS = 60 * 60 * 1000;
+const RESET_TOKEN_DURATION_MS = 15 * 60 * 1000;
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  path: "/",
+};
+
+const setAuthCookie = (res, token) => {
+  res.cookie("token", token, {
+    ...cookieOptions,
+    maxAge: SESSION_DURATION_MS,
+  });
+};
+
+const clearAuthCookie = (res) => {
+  res.clearCookie("token", cookieOptions);
+};
+
+const handleServerError = (res, context, error) => {
+  // Never log credentials, cookies, or JWT values.
+  console.error(`[${context}]`, error.name || "Error");
+
+  return res.status(500).json({
+    message: "Internal server error",
+  });
+};
 
 // ========================
-// SIGN UP VALIDATION
+// VALIDATION
 // ========================
+
+const passwordSchema = Joi.string()
+  .min(8)
+  .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
+  .messages({
+    "string.pattern.base":
+      "Password must contain uppercase, lowercase, and number",
+    "string.min": "Password must be at least 8 characters",
+  });
+
 const signUpSchema = Joi.object({
-  username: Joi.string().min(3).max(10).required(),
-  email: Joi.string().email().required(),
-
-  // 🔥 strong password policy (SIGN UP ONLY)
-  password: Joi.string()
-    .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
-    .messages({
-      "string.pattern.base":
-        "Password must contain uppercase, lowercase, and number",
-      "string.min": "Password must be at least 8 characters",
-    })
+  username: Joi.string()
+    .trim()
+    .lowercase()
+    .min(3)
+    .max(10)
+    .pattern(/^[a-z0-9_]+$/)
     .required(),
-});
 
-// ========================
-// SIGN IN VALIDATION
-// ========================
+  email: Joi.string()
+    .trim()
+    .lowercase()
+    .email()
+    .required(),
+
+  password: passwordSchema.required(),
+}).unknown(false);
+
 const signInSchema = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().required(), // 🔥 only check required
-});
+  email: Joi.string().trim().lowercase().email().required(),
+  password: Joi.string().required(),
+}).unknown(false);
+
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().required(),
+}).unknown(false);
+
+const resetPasswordSchema = Joi.object({
+  password: passwordSchema.required(),
+}).unknown(false);
+
+const validateRequest = (schema, body) => {
+  return schema.validate(body, {
+    abortEarly: true,
+    convert: true,
+  });
+};
 
 // ========================
-// SIGN UP CONTROLLER
+// SIGN UP
 // ========================
+
 const signUp = async (req, res) => {
-  const { error } = signUpSchema.validate(req.body);
+  const { error, value } = validateRequest(signUpSchema, req.body);
+
   if (error) {
-    return res.status(400).json({ message: error.details[0].message });
+    return res.status(400).json({
+      message: error.details[0].message,
+    });
   }
 
-  const { username, email, password } = req.body;
+  const { username, email, password } = value;
 
   try {
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({
+      $or: [{ email }, { username }],
+    }).select("_id email username");
+
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      const field =
+        existingUser.email === email ? "email" : "username";
+
+      return res.status(409).json({
+        message:
+          field === "email"
+            ? "Email is already registered"
+            : "Username is already taken",
+      });
     }
 
-    const existingUsername = await User.findOne({ username });
-    if (existingUsername) {
-      return res.status(400).json({ message: "Username already exists" });
-    }
+    const newUser = await User.create({
+      username,
+      email,
+      password,
+    });
 
-    const newUser = new User({ username, email, password });
-    await newUser.save();
-
-    res.status(201).json({
+    return res.status(201).json({
       message: "User successfully created",
       user: {
         id: newUser._id,
@@ -77,18 +148,22 @@ const signUp = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "Email or username is already taken",
+      });
+    }
+
+    return handleServerError(res, "SIGN_UP", error);
   }
 };
 
 // ========================
-// SIGN IN CONTROLLER
+// SIGN IN
 // ========================
+
 const signIn = async (req, res) => {
-  const { error } = signInSchema.validate(req.body);
+  const { error, value } = validateRequest(signInSchema, req.body);
 
   if (error) {
     return res.status(400).json({
@@ -96,40 +171,38 @@ const signIn = async (req, res) => {
     });
   }
 
-  const { email, password } = req.body;
+  const { email, password } = value;
 
   try {
     const user = await User.findOne({ email }).select("+password");
 
-    if (!user) {
-    return res.status(400).json({ message: "User not found" });
-    }
-
-    if (!user.password) {
-    return res.status(500).json({ message: "Password missing in DB" });
+    // Use the same response for unknown email and wrong password.
+    if (!user || !user.password) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
     }
 
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
-    return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
     }
 
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id.toString() },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      {
+        expiresIn: "1h",
+        algorithm: "HS256",
+      }
     );
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "None" : "Lax",
-      path: "/",
-      maxAge: 3600000,
-    });
+    setAuthCookie(res, token);
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Sign-in successful",
       user: {
         id: user._id,
@@ -138,26 +211,20 @@ const signIn = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    return handleServerError(res, "SIGN_IN", error);
   }
 };
 
 // ========================
 // LOGOUT
 // ========================
-const logOut = (req, res) => {
-  res.cookie("token", "", {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "None" : "Lax",
-    path: "/",
-    expires: new Date(0),
-  });
 
-  res.status(200).json({ message: "Logout successful" });
+const logOut = (req, res) => {
+  clearAuthCookie(res);
+
+  return res.status(200).json({
+    message: "Logout successful",
+  });
 };
 
 // ========================
@@ -169,145 +236,190 @@ const getCurrentUser = async (req, res) => {
 
   if (!token) {
     return res.status(401).json({
-      message: "Unauthorized: No token provided",
+      message: "Unauthorized",
     });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ["HS256"],
+    });
 
-    if (!decoded.userId) {
+    if (
+      !decoded.userId ||
+      !mongoose.Types.ObjectId.isValid(decoded.userId)
+    ) {
       return res.status(401).json({
-        message: "Invalid token payload",
+        message: "Invalid token",
       });
     }
 
     const user = await User.findById(decoded.userId)
-      .select("-password")
+      .select("_id username email createdAt")
+      .lean();
 
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
+      clearAuthCookie(res);
+
+      return res.status(401).json({
+        message: "Unauthorized",
       });
     }
 
     return res.status(200).json({ user });
   } catch (error) {
-    console.error("getCurrentUser error:", error.name, error.message);
+    if (
+      error.name === "TokenExpiredError" ||
+      error.name === "JsonWebTokenError" ||
+      error.name === "NotBeforeError"
+    ) {
+      clearAuthCookie(res);
 
-    return res.status(401).json({
-      message:
-        error.name === "TokenExpiredError"
-          ? "Session expired. Please sign in again."
-          : "Unauthorized: Invalid token",
-    });
+      return res.status(401).json({
+        message:
+          error.name === "TokenExpiredError"
+            ? "Session expired. Please sign in again."
+            : "Unauthorized",
+      });
+    }
+
+    return handleServerError(res, "GET_CURRENT_USER", error);
   }
 };
-
-
-// ========================
-// FORGOT / RESET VALIDATION
-// ========================
-const forgotPasswordSchema = Joi.object({
-  email: Joi.string().email().required(),
-});
-
-const resetPasswordSchema = Joi.object({
-  password: Joi.string()
-    .min(8)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
-    .messages({
-      "string.pattern.base":
-        "Password must contain uppercase, lowercase, and number",
-      "string.min": "Password must be at least 8 characters",
-    })
-    .required(),
-});
 
 // ========================
 // FORGOT PASSWORD
 // ========================
+
 const forgotPassword = async (req, res) => {
-  const { error } = forgotPasswordSchema.validate(req.body);
+  const { error, value } = validateRequest(
+    forgotPasswordSchema,
+    req.body
+  );
+
   if (error) {
-    return res.status(400).json({ message: error.details[0].message });
+    return res.status(400).json({
+      message: error.details[0].message,
+    });
   }
 
-  const genericMsg = {
-    message: "If the email is registered, a reset link has been sent.",
+  const genericResponse = {
+    message:
+      "If the email is registered, a reset link has been sent.",
   };
 
   try {
-    const user = await User.findOne({ email: req.body.email });
-    if (!user) return res.status(200).json(genericMsg);
+    const user = await User.findOne({ email: value.email });
+
+    // Do not disclose whether an email exists.
+    if (!user) {
+      return res.status(200).json(genericResponse);
+    }
 
     const rawToken = crypto.randomBytes(32).toString("hex");
+
     user.resetPasswordToken = crypto
       .createHash("sha256")
       .update(rawToken)
       .digest("hex");
-    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+
+    user.resetPasswordExpires =
+      Date.now() + RESET_TOKEN_DURATION_MS;
+
     await user.save();
 
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
+    const resetUrl =
+      `${CLIENT_URL.replace(/\/$/, "")}` +
+      `/reset-password/${rawToken}`;
 
     try {
       await sendEmail({
         to: user.email,
         subject: "Reset Password",
-        html: `<p>Klik link berikut untuk reset password (berlaku 15 menit):</p>
-               <a href="${resetUrl}">${resetUrl}</a>
-               <p>Abaikan email ini jika kamu tidak memintanya.</p>`,
+        html: `
+          <p>Klik link berikut untuk reset password.
+          Link berlaku selama 15 menit.</p>
+          <a href="${resetUrl}">Reset password</a>
+          <p>Abaikan email ini jika kamu tidak memintanya.</p>
+        `,
       });
-    } catch (mailErr) {
-      console.error("Mail error:", mailErr);
+    } catch (mailError) {
+      // Invalidate the token if email delivery fails.
       user.resetPasswordToken = undefined;
       user.resetPasswordExpires = undefined;
       await user.save();
-      return res.status(500).json({ message: "Failed to send email" });
+
+      console.error(
+        "[FORGOT_PASSWORD_EMAIL]",
+        mailError.name || "Error"
+      );
+
+      return res.status(500).json({
+        message: "Unable to send reset email. Please try again.",
+      });
     }
 
-    res.status(200).json(genericMsg);
-  } catch (err) {
-    console.error("Forgot password error:", err); // <-- dan ini
-    res.status(500).json({ message: "Server error" });
+    return res.status(200).json(genericResponse);
+  } catch (error) {
+    return handleServerError(res, "FORGOT_PASSWORD", error);
   }
 };
 
 // ========================
 // RESET PASSWORD
 // ========================
+
 const resetPassword = async (req, res) => {
-  const { error } = resetPasswordSchema.validate(req.body);
+  const { error, value } = validateRequest(
+    resetPasswordSchema,
+    req.body
+  );
+
   if (error) {
-    return res.status(400).json({ message: error.details[0].message });
+    return res.status(400).json({
+      message: error.details[0].message,
+    });
   }
 
   try {
+    const { token } = req.params;
+
+    if (
+      typeof token !== "string" ||
+      !/^[a-f0-9]{64}$/i.test(token)
+    ) {
+      return res.status(400).json({
+        message: "Token is invalid or has expired",
+      });
+    }
+
     const hashedToken = crypto
       .createHash("sha256")
-      .update(req.params.token)
+      .update(token)
       .digest("hex");
 
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() },
+      resetPasswordExpires: { $gt: new Date() },
     }).select("+resetPasswordToken +resetPasswordExpires");
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Token is invalid or has expired" });
+      return res.status(400).json({
+        message: "Token is invalid or has expired",
+      });
     }
 
-    user.password = req.body.password; // di-hash oleh pre('save') di model
+    user.password = value.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+
     await user.save();
 
-    res.status(200).json({ message: "Password reset successful" });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    return res.status(200).json({
+      message: "Password reset successful",
+    });
+  } catch (error) {
+    return handleServerError(res, "RESET_PASSWORD", error);
   }
 };
 

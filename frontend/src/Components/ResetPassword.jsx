@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
+import FloatingBubbles from "../Components/FloatingBubbles";
 import T from "../assets/letter-t.svg";
 
 const validatePassword = (password) => ({
@@ -69,7 +70,8 @@ const ResetPassword = () => {
 
   return (
     <div className="p-6 sm:p-10 min-h-screen flex flex-col justify-center items-center">
-      <div className="w-full sm:max-w-md">
+      <FloatingBubbles />
+      <div className="relative z-10 w-full sm:max-w-md">
         {Logo}
         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Reset Password</h2>
 

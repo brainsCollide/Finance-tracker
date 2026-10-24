@@ -246,7 +246,9 @@ const Budgets = () => {
                     ? 'bg-amber-500'
                     : 'bg-emerald-500'
                 }`}
-                style={{ width: `${overallPercentage}%` }}
+                style={{
+                  width: `${Math.min(overallPercentage, 100)}%`,
+                }}
               />
             </div>
           </div>

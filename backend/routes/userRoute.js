@@ -1,12 +1,21 @@
-// routes/userRoute.js
+
 const express = require('express');
-const { getUserById, getAllUsers } = require('../controller/userController');
+const {
+    getUserById,
+} = require('../controller/userController');
+const authenticate = require('../middleware/authenticate');
+
 const router = express.Router();
 
-// GET user by ID
-router.get('/:id', getUserById);
+// User can only access their own profile.
+router.get('/:id', authenticate, (req, res, next) => {
+    if (String(req.user.userId) !== String(req.params.id)) {
+        return res.status(403).json({
+            message: 'Forbidden: You cannot access this user',
+        });
+    }
 
-// GET all users
-router.get('/', getAllUsers);
+    return next();
+}, getUserById);
 
 module.exports = router;

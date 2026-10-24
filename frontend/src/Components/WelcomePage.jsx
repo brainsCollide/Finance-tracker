@@ -7,7 +7,7 @@ const WelcomePage = () => {
   const navigate = useNavigate();
 
   const handleLoginRedirect = () => {
-    navigate('/app');
+    navigate('/app/account');
   };
 
   // Motion Variants

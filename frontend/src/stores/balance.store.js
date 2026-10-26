@@ -3,6 +3,13 @@ import { create } from "zustand";
 import axiosInstance from "../api/axiosInstance";
 import { useBudgetStore } from "./budget.store";
 
+const PAYMENT_TO_TRANSACTION_CATEGORY = {
+  rent: "other",
+  subscription: "other",
+  loan: "other",
+  other: "other",
+};
+
 export const useBalanceStore = create((set, get) => ({
   income: 0,
   expenses: 0,
@@ -122,27 +129,23 @@ export const useBalanceStore = create((set, get) => ({
   },
 
   // 4. Tandai pembayaran sebagai lunas
-  markPaymentAsPaid: async (amount) => {
-    try {
-      await axiosInstance.post(
-        "/transactions",
-        {
-          type: "expense",
-          amount: Number(amount),
-          title: "Paid Upcoming Payment",
-          category: "other",
-        },
-        { withCredentials: true }
-      );
+  markPaymentAsPaid: async (payment) => {
+    await axiosInstance.post(
+      "/transactions",
+      {
+        type: "expense",
+        amount: Number(payment.amount),
+        title: payment.title,
+        category: PAYMENT_TO_TRANSACTION_CATEGORY[payment.category] || "other",
+      },
+      { withCredentials: true }
+    );
 
-      await Promise.all([
-        get().fetchTransactionStats(),
-        get().fetchTransactions(),
-      ]);
+    await Promise.all([
+      get().fetchTransactionStats(),
+      get().fetchTransactions(),
+    ]);
 
-      await useBudgetStore.getState().fetchBudgets();
-    } catch (error) {
-      throw error;
-    }
+    await useBudgetStore.getState().fetchBudgets();
   },
 }));

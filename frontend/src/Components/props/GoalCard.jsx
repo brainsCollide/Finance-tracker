@@ -1,4 +1,3 @@
-import React from "react";
 import {
   FiTrash2,
   FiCalendar,
@@ -7,15 +6,33 @@ import {
   FiEdit2,
 } from "react-icons/fi";
 
+
 const GoalCard = ({ goal, onDelete, onEdit }) => {
-  const { title, targetAmount, currentAmount, deadline, _id } = goal;
+  const {
+    title,
+    targetAmount,
+    currentAmount,
+    deadline,
+    _id,
+  } = goal;
 
-  const progress = Math.min(
-    (currentAmount / targetAmount) * 100,
-    100
-  );
+  // Fallback untuk data null atau undefined.
+  const safeCurrentAmount = Number(currentAmount ?? 0);
+  const safeTargetAmount = Number(targetAmount ?? 0);
 
-  const isCompleted = progress >= 100;
+  // Hindari NaN, Infinity, dan pembagian dengan nol.
+  const progress =
+    Number.isFinite(safeCurrentAmount) &&
+    Number.isFinite(safeTargetAmount) &&
+    safeTargetAmount > 0
+      ? Math.min(
+          Math.max((safeCurrentAmount / safeTargetAmount) * 100, 0),
+          100
+        )
+      : 0;
+
+  const isCompleted =
+    safeTargetAmount > 0 && progress >= 100;
 
   return (
     <div className="group bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
@@ -65,7 +82,7 @@ const GoalCard = ({ goal, onDelete, onEdit }) => {
           {title}
         </h3>
 
-        <div className="flex items-center gap-2 text-slate-400 text-xs mt-1 font-bold uppercase tracking-widest">
+        <div className="flex items-center gap-2 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-all relative z-20">
           <FiCalendar size={12} />
           <span>
             Due{" "}
@@ -79,19 +96,19 @@ const GoalCard = ({ goal, onDelete, onEdit }) => {
 
       {/* AMOUNT */}
       <div className="space-y-3">
-
         <div className="flex justify-between items-end">
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter leading-none">
               Savings
             </p>
+
             <p className="text-lg font-black text-slate-900">
-              Rp {currentAmount.toLocaleString("id-ID")}
+              Rp {safeCurrentAmount.toLocaleString("id-ID")}
             </p>
           </div>
 
           <p className="text-xs font-bold text-slate-400 pb-1">
-            of Rp {targetAmount.toLocaleString("id-ID")}
+            of Rp {safeTargetAmount.toLocaleString("id-ID")}
           </p>
         </div>
 

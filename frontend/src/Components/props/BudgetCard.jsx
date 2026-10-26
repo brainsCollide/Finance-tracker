@@ -47,7 +47,7 @@ const BudgetCard = ({ budget, onDelete, onEdit }) => {
   <div className={`absolute top-0 left-0 right-0 h-1 ${status.bar} opacity-90`}></div>
 
   {/* Action Buttons */}
-  <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+  <div className="absolute top-3 right-3 flex gap-1.5 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-10">
     <button
       onClick={() => onEdit?.(budget)}
       className="p-2 bg-white/80 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"

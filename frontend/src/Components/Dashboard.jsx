@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import { useNavigate } from "react-router-dom";
 import { PlusCircle } from "lucide-react";
 import AddTransaction from "./Widgets/AddTransaction";
 import UpcomingPayment from "./Widgets/UpcomingPayment";
@@ -6,8 +13,9 @@ import Modal from "./Widgets/Modal";
 import BarChartComponent from "./Charts/BarChart";
 import DoughnutChartComponent from "./Charts/DoughnutChart";
 import { useAuthStore } from "../stores/auth.store";
-import { IoMdCheckmark } from "react-icons/io";
 import SavingsRateBadge from "./Badges/SavingsRateBadge";
+import PaymentRow from "../props/PaymentRow";
+import { getDaysUntil, groupPayments } from "../utils/payments";
 
 import {
   FiTrendingUp,
@@ -16,7 +24,6 @@ import {
   FiCalendar,
   FiTarget,
   FiChevronRight,
-  FiActivity,
   FiCreditCard,
 } from "react-icons/fi";
 
@@ -25,7 +32,11 @@ import { usePaymentStore } from "../stores/payment.store";
 import { useBudgetStore } from "../stores/budget.store";
 import { toast, ToastContainer } from "react-toastify";
 
-export default function Dashboard({ onSectionChange }) {
+const UNDO_MS = 5000;
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+
   const [modalType, setModalType] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -111,21 +122,111 @@ export default function Dashboard({ onSectionChange }) {
     fetchTransactionStats(selectedMonthNumber, selectedYear);
   }, [fetchTransactionStats, selectedMonthNumber, selectedYear]);
 
-  const handleMarkPaid = async (id, amount) => {
-    try {
-      await markAsPaid(id, amount);
+  // --- Upcoming payments: urutan, undo, dan "view all" ---
+  const [pendingIds, setPendingIds] = useState([]); // sedang menunggu undo
+  const pendingRef = useRef(new Map()); // id -> { timeoutId, payment }
+  const periodRef = useRef({
+    month: selectedMonthNumber,
+    year: selectedYear,
+  });
 
+  useEffect(() => {
+    periodRef.current = { month: selectedMonthNumber, year: selectedYear };
+  }, [selectedMonthNumber, selectedYear]);
+
+  const sortedPayments = useMemo(
+    () =>
+      [...upcomingPayments]
+        .filter((p) => !pendingIds.includes(p._id))
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)),
+    [upcomingPayments, pendingIds]
+  );
+
+  // Kartu menampilkan yang mendesak (overdue + 14 hari ke depan), maksimal 4.
+  // Kalau tidak ada yang mendesak, tampilkan 3 terdekat supaya kartu tidak kosong.
+  const { cardPayments, hiddenCount } = useMemo(() => {
+    const urgent = sortedPayments.filter(
+      (p) => getDaysUntil(p.dueDate) <= 14
+    );
+    const shown =
+      urgent.length > 0 ? urgent.slice(0, 4) : sortedPayments.slice(0, 3);
+    return {
+      cardPayments: shown,
+      hiddenCount: sortedPayments.length - shown.length,
+    };
+  }, [sortedPayments]);
+
+  const commitPaid = async (payment) => {
+    pendingRef.current.delete(payment._id);
+    try {
+      await markAsPaid(payment);
+      const { month, year } = periodRef.current;
       await Promise.all([
-        fetchTransactionStats(selectedMonthNumber, selectedYear),
+        fetchTransactionStats(month, year),
         fetchTransactions(),
         fetchBudgets(),
       ]);
-
-      toast.success("Pembayaran berhasil dibayar");
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Gagal menandai pembayaran");
+    } finally {
+      setPendingIds((ids) => ids.filter((id) => id !== payment._id));
     }
+  };
+
+  // ref supaya cleanup unmount selalu memakai versi terbaru
+  const commitRef = useRef(commitPaid);
+  commitRef.current = commitPaid;
+
+  // Kalau user pindah halaman saat menunggu undo, proses pembayarannya sekarang
+  useEffect(() => {
+    const pending = pendingRef.current;
+    return () => {
+      pending.forEach(({ timeoutId, payment }) => {
+        clearTimeout(timeoutId);
+        commitRef.current(payment);
+      });
+      pending.clear();
+    };
+  }, []);
+
+  const handleUndoPaid = (payment) => {
+    const entry = pendingRef.current.get(payment._id);
+    if (!entry) return; // sudah terlanjur diproses
+    clearTimeout(entry.timeoutId);
+    pendingRef.current.delete(payment._id);
+    setPendingIds((ids) => ids.filter((id) => id !== payment._id));
+  };
+
+  const handleMarkPaid = (payment) => {
+    if (pendingRef.current.has(payment._id)) return;
+
+    setPendingIds((ids) => [...ids, payment._id]);
+    const timeoutId = setTimeout(() => commitRef.current(payment), UNDO_MS);
+    pendingRef.current.set(payment._id, { timeoutId, payment });
+
+    toast(
+      ({ closeToast }) => (
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm">"{payment.title}" ditandai lunas</span>
+          <button
+            type="button"
+            onClick={() => {
+              handleUndoPaid(payment);
+              closeToast();
+            }}
+            className="text-sm font-semibold text-blue-600 hover:underline"
+          >
+            Undo
+          </button>
+        </div>
+      ),
+      {
+        autoClose: UNDO_MS,
+        closeOnClick: false,
+        pauseOnHover: false,
+        pauseOnFocusLoss: false,
+      }
+    );
   };
 
   const savingsRate =
@@ -152,7 +253,7 @@ export default function Dashboard({ onSectionChange }) {
   const yearlyMonthlyAverage = Math.round(summaryExpenses / 12);
 
   const activeBudgets = budgets.length;
-  const recurringBills = upcomingPayments.length;
+  const recurringBills = sortedPayments.length;
 
   const periodLabel =
     summaryMode === "yearly"
@@ -281,7 +382,9 @@ export default function Dashboard({ onSectionChange }) {
                   value={`${selectedYear}-${String(selectedMonthNumber).padStart(2, "0")}`}
                   onChange={(event) => {
                     if (!event.target.value) return;
-                    const [year, month] = event.target.value.split("-").map(Number);
+                    const [year, month] = event.target.value
+                      .split("-")
+                      .map(Number);
                     setSelectedYear(year);
                     setSelectedMonth(month - 1);
                   }}
@@ -296,7 +399,11 @@ export default function Dashboard({ onSectionChange }) {
                   value={selectedYear}
                   onChange={(event) => {
                     const year = Number(event.target.value);
-                    if (Number.isInteger(year) && year >= 2000 && year <= 2100) {
+                    if (
+                      Number.isInteger(year) &&
+                      year >= 2000 &&
+                      year <= 2100
+                    ) {
                       setSelectedYear(year);
                     }
                   }}
@@ -335,7 +442,9 @@ export default function Dashboard({ onSectionChange }) {
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-xs text-slate-500">
-                        {summaryMode === "yearly" ? "Yearly net" : "Year-to-date net"}
+                        {summaryMode === "yearly"
+                          ? "Yearly net"
+                          : "Year-to-date net"}
                       </p>
                       <p className="mt-1 text-lg font-semibold text-slate-800">
                         {formatRupiah(summaryNet)}
@@ -380,7 +489,9 @@ export default function Dashboard({ onSectionChange }) {
                   {formatRupiah(summaryIncome)}
                 </p>
                 <p className="mt-2 text-xs text-slate-400">
-                  {summaryMode === "yearly" ? "Money received this year" : `Money received in ${periodLabel}`}
+                  {summaryMode === "yearly"
+                    ? "Money received this year"
+                    : `Money received in ${periodLabel}`}
                 </p>
               </div>
 
@@ -401,7 +512,9 @@ export default function Dashboard({ onSectionChange }) {
                   {formatRupiah(summaryExpenses)}
                 </p>
                 <p className="mt-2 text-xs text-slate-400">
-                  {summaryMode === "yearly" ? "Money spent this year" : `Money spent in ${periodLabel}`}
+                  {summaryMode === "yearly"
+                    ? "Money spent this year"
+                    : `Money spent in ${periodLabel}`}
                 </p>
               </div>
             </div>
@@ -523,7 +636,11 @@ export default function Dashboard({ onSectionChange }) {
                 Average daily spending
               </p>
               <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-slate-900">
-                {formatRupiah(summaryMode === "yearly" ? yearlyMonthlyAverage : monthlyBurn)}
+                {formatRupiah(
+                  summaryMode === "yearly"
+                    ? yearlyMonthlyAverage
+                    : monthlyBurn
+                )}
               </p>
               <p className="mt-2 text-xs leading-5 text-slate-400">
                 {summaryMode === "yearly"
@@ -599,7 +716,7 @@ export default function Dashboard({ onSectionChange }) {
 
               <button
                 type="button"
-                onClick={() => onSectionChange("Payments")}
+                onClick={() => setModalType("allPayments")}
                 aria-label="View all payments"
                 className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
               >
@@ -608,46 +725,26 @@ export default function Dashboard({ onSectionChange }) {
             </div>
 
             <div className="space-y-3">
-              {upcomingPayments.length > 0 ? (
-                upcomingPayments.slice(0, 3).map((payment) => (
-                  <div
-                    key={payment._id}
-                    className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-slate-200 sm:p-4"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
-                        <FiCalendar size={17} />
-                      </div>
+              {cardPayments.length > 0 ? (
+                <>
+                  {cardPayments.map((payment) => (
+                    <PaymentRow
+                      key={payment._id}
+                      payment={payment}
+                      onPay={handleMarkPaid}
+                    />
+                  ))}
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-800">
-                          {payment.title}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          Due{" "}
-                          {new Date(payment.dueDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                      <span className="text-xs font-semibold text-slate-800 sm:text-sm">
-                        {formatRupiah(payment.amount)}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleMarkPaid(payment._id, payment.amount)
-                        }
-                        aria-label={`Mark ${payment.title} as paid`}
-                        className="rounded-lg bg-emerald-50 p-2 text-emerald-600 transition hover:bg-emerald-600 hover:text-white"
-                      >
-                        <IoMdCheckmark size={17} />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setModalType("allPayments")}
+                      className="w-full rounded-xl py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+                    >
+                      +{hiddenCount} more · View all
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
                   <p className="text-sm text-slate-500">
@@ -676,7 +773,7 @@ export default function Dashboard({ onSectionChange }) {
 
               <button
                 type="button"
-                onClick={() => onSectionChange("Budgets")}
+                onClick={() => navigate("/app/budgets")}
                 aria-label="View all budgets"
                 className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
               >
@@ -767,9 +864,39 @@ export default function Dashboard({ onSectionChange }) {
         title="Add Upcoming Payment"
         subtitle="Stay ahead of your bills and scheduled payments with smart reminders and due tracking."
       >
-        <UpcomingPayment
-          closeModal={() => setModalType(null)}
-        />
+        <UpcomingPayment closeModal={() => setModalType(null)} />
+      </Modal>
+
+      <Modal
+        isOpen={modalType === "allPayments"}
+        onClose={() => setModalType(null)}
+        title="Upcoming payments"
+        subtitle="Everything that's scheduled, ordered by due date."
+      >
+        <div className="max-h-[60vh] space-y-6 overflow-y-auto pr-1">
+          {groupPayments(sortedPayments).map((group) => (
+            <div key={group.key}>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {group.title} · {group.items.length}
+              </h3>
+              <div className="space-y-3">
+                {group.items.map((payment) => (
+                  <PaymentRow
+                    key={payment._id}
+                    payment={payment}
+                    onPay={handleMarkPaid}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {sortedPayments.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-500">
+              You're all caught up.
+            </p>
+          )}
+        </div>
       </Modal>
     </div>
   );

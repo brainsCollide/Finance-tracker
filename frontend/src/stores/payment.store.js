@@ -42,22 +42,21 @@ export const usePaymentStore = create((set) => ({
     },
     // Mark as paid (delete dari list)
   
-    markAsPaid: async (id, amount) => {
-    try {
-        // 1. delete di backend
-        await axiosInstance.delete(`/payments/${id}`);
+    markAsPaid: async (payment) => {
+        try {
+            // 1. Catat transaksi dulu, supaya kalau gagal tagihan tidak hilang
+            await useBalanceStore.getState().markPaymentAsPaid(payment);
 
-        // 2. remove dari list (optimistic)
-        set((state) => ({
-        upcomingPayments: state.upcomingPayments.filter((p) => p._id !== id),
-        }));
+            // 2. Baru hapus tagihan
+            await axiosInstance.delete(`/payments/${payment._id}`);
 
-        // 3. update balance store
-        await useBalanceStore.getState().markPaymentAsPaid(amount);
-
-    } catch (err) {
-        throw new Error(err.response?.data?.message || 'Gagal menandai paid');
-    }
+            // 3. Hapus dari list
+            set((state) => ({
+            upcomingPayments: state.upcomingPayments.filter((p) => p._id !== payment._id),
+            }));
+        } catch (err) {
+            throw new Error(err.response?.data?.message || err.message || "Gagal menandai paid");
+        }
     },
 
   // Reset state (opsional, misal logout)

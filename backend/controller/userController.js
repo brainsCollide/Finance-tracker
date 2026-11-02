@@ -44,6 +44,32 @@ const getUserById = async (req, res) => {
     }
 };
 
-module.exports = {
-    getUserById,
+const updateCurrency = async (req, res) => {
+  try {
+    const { currency } = req.body;
+    const allowed = User.schema.path('currency').enumValues;
+
+    if (!allowed.includes(currency)) {
+      return res.status(400).json({ message: 'Unsupported currency' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { currency },
+      { new: true, runValidators: true }
+    )
+      .select('currency')
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json({ currency: user.currency });
+  } catch (error) {
+    console.error('Failed to update currency:', error.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 };
+
+module.exports = { getUserById, updateCurrency };

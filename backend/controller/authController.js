@@ -255,7 +255,7 @@ const getCurrentUser = async (req, res) => {
     }
 
     const user = await User.findById(decoded.userId)
-      .select("_id username email createdAt")
+      .select("_id username email createdAt currency")
       .lean();
 
     if (!user) {
@@ -266,7 +266,7 @@ const getCurrentUser = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ user });
+    return res.status(200).json({ user: { ...user, currency: user.currency ?? "IDR" } });
   } catch (error) {
     if (
       error.name === "TokenExpiredError" ||

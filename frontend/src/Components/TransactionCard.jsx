@@ -6,9 +6,12 @@ import {
   FiCalendar, 
   FiTag 
 } from "react-icons/fi";
+import { useCurrency } from "../hooks/useCurrency";
+
 
 const TransactionCard = ({ transaction, onDelete }) => {
   const { title, type, category, date, amount, _id } = transaction;
+  const { format } = useCurrency();
 
   const isIncome = type === "income";
 
@@ -69,7 +72,7 @@ const TransactionCard = ({ transaction, onDelete }) => {
             Amount
           </span>
           <span className={`text-xl font-extrabold tracking-tight ${theme.text}`}>
-            {isIncome ? "+" : "-"} Rp {amount.toLocaleString("id-ID")}
+            {isIncome ? "+" : "-"} {format(amount)}
           </span>
         </div>
 

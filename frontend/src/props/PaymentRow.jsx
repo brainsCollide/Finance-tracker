@@ -1,6 +1,8 @@
 import { FiCalendar, FiAlertCircle } from "react-icons/fi";
 import { IoMdCheckmark } from "react-icons/io";
 import { getDueInfo } from "../utils/payments";
+import { useCurrency } from "../hooks/useCurrency";
+
 
 const TONES = {
   overdue: {
@@ -20,13 +22,14 @@ const TONES = {
   },
 };
 
-const formatRupiah = (amount) =>
-  `Rp ${Number(amount || 0).toLocaleString("id-ID")}`;
+
 
 export default function PaymentRow({ payment, onPay }) {
   const { label, tone } = getDueInfo(payment.dueDate);
   const style = TONES[tone];
   const Icon = tone === "overdue" ? FiAlertCircle : FiCalendar;
+
+  const { format: formatRupiah } = useCurrency();
 
   return (
     <div

@@ -127,7 +127,7 @@ const AddRecurring = ({ closeModal, onSuccess }) => {
             label="Amount"
             icon={FiDollarSign}
             type="number"
-            inputMode="numeric"
+            inputMode="decimal"
             min="0"
             name="amount"
             placeholder="0"

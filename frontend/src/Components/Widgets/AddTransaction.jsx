@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useBalanceStore } from "../../stores/balance.store";
 import { toast } from "react-toastify";
-import { FiTag, FiDollarSign, FiCalendar, FiActivity, FiFilter } from "react-icons/fi";
+import { FiTag, FiCalendar, FiActivity, FiFilter } from "react-icons/fi";
+import CurrencyIcon from "./CurrencyIcon";
 
 // --- FormInput DI LUAR (Agar kursor tidak hilang saat ngetik) ---
 const FormInput = ({ label, icon: Icon, error, transactionType, ...props }) => (
@@ -83,9 +84,10 @@ const AddTransaction = ({ closeModal }) => {
         <div className="flex flex-col sm:flex-row gap-4">
           <FormInput
             label="Amount"
-            icon={FiDollarSign}
+            icon={CurrencyIcon}
             type="number"
             name="amount"
+            step="any"
             placeholder="00"
             value={transaction.amount}
             onChange={handleChanges}

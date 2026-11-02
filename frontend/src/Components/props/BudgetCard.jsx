@@ -4,6 +4,8 @@ import {
   FiZap, FiDollarSign, FiTrash2, FiEdit3 
 } from "react-icons/fi";
 
+import { useCurrency } from "../../hooks/useCurrency";
+
 const categoryIcons = {
   work: FiDollarSign,
   grocery: FiCoffee,
@@ -20,6 +22,7 @@ const categoryIcons = {
 
 const BudgetCard = ({ budget, onDelete, onEdit }) => {
   const { _id, category, spent = 0, limit = 0, percentage = 0 } = budget || {};
+  const { format } = useCurrency();
 
   // Guard semua field
   const safeCategory = category || "Other";
@@ -39,7 +42,6 @@ const BudgetCard = ({ budget, onDelete, onEdit }) => {
   const status = getStatusStyles();
 
   const remaining = safeLimit - safeSpent;
-  const remainingFormatted = remaining >= 0 ? remaining.toLocaleString("id-ID") : `-${Math.abs(remaining).toLocaleString("id-ID")}`;
 
   return (
     <div className="group relative bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg hover:shadow-xl hover:scale-[1.015] transition-all duration-300 overflow-hidden">
@@ -90,7 +92,7 @@ const BudgetCard = ({ budget, onDelete, onEdit }) => {
           Spent
         </p>
         <p className="text-xl font-black text-gray-900">
-          Rp {safeSpent.toLocaleString("id-ID")}
+          {format(safeSpent)}
         </p>
       </div>
 
@@ -99,7 +101,7 @@ const BudgetCard = ({ budget, onDelete, onEdit }) => {
           Limit
         </p>
         <p className="text-lg font-bold text-gray-600">
-          Rp {safeLimit.toLocaleString("id-ID")}
+          {format(safeLimit)}
         </p>
       </div>
     </div>
@@ -119,12 +121,12 @@ const BudgetCard = ({ budget, onDelete, onEdit }) => {
             OVER LIMIT
           </span>
           <span className="text-rose-600 font-bold">
-            -Rp {Math.abs(remaining).toLocaleString("id-ID")}
+            {format(Math.abs(remaining))}
           </span>
         </div>
       ) : (
         <div className="text-right text-xs text-gray-600">
-          Rp {remainingFormatted} left
+          {format(remaining)} left
         </div>
       )}
     </div>

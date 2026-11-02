@@ -9,6 +9,7 @@ import BudgetCard from './props/BudgetCard';
 import AddBudgetModal from './Widgets/AddBudgetModal';
 import ConfirmModal from './Widgets/ConfirmModal';
 import { useBudgetStore } from '../stores/budget.store';
+import { useCurrency } from '../hooks/useCurrency';
 
 // ─── Loading ─────────────────────────────────────────────
 
@@ -51,6 +52,8 @@ const Budgets = () => {
     deleteBudget,
     upsertBudget,
   } = useBudgetStore();
+
+  const { format } = useCurrency();
 
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -185,7 +188,7 @@ const Budgets = () => {
                       Total Limit
                     </p>
                     <p className="text-sm font-bold text-emerald-600">
-                      Rp {totalLimit.toLocaleString('id-ID')}
+                      {format(totalLimit)}
                     </p>
                   </div>
                 </div>
@@ -197,7 +200,7 @@ const Budgets = () => {
                       Total Spent
                     </p>
                     <p className="text-sm font-bold text-rose-600">
-                      Rp {totalSpent.toLocaleString('id-ID')}
+                      {format(totalSpent)}
                     </p>
                   </div>
                 </div>

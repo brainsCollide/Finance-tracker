@@ -28,6 +28,12 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    currency: {
+      type: String,
+      enum: ['IDR', 'TRY', 'USD'],
+      default: 'IDR',
+    },
+
     resetPasswordToken: {
       type: String,
       select: false,

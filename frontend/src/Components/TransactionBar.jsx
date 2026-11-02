@@ -2,6 +2,7 @@ import { ToastContainer } from "react-toastify";
 import { FiInbox, FiLoader, FiAlertCircle, FiSearch, FiFilter, FiArrowUpRight, FiArrowDownLeft } from "react-icons/fi";
 import TransactionCard from "./TransactionCard";
 import useTransactions from "../hooks/useTransactions";
+import { useCurrency } from "../hooks/useCurrency";
 import "react-toastify/dist/ReactToastify.css";
 
 const Loading = () => (
@@ -30,6 +31,8 @@ const TransactionBar = ({ onSectionChange }) => {
   const { transactions, loading, error, isAuthenticated, deleteTransaction } = useTransactions();
 
   const handleLoginRedirect = () => onSectionChange("Account");
+
+  const { format } = useCurrency();
 
   // Quick summary calculation for the page header
   const totalIncome = transactions
@@ -90,14 +93,14 @@ const TransactionBar = ({ onSectionChange }) => {
                 <div className="text-emerald-500"><FiArrowUpRight size={20}/></div>
                 <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Total In</p>
-                    <p className="text-sm font-bold text-emerald-600">Rp {totalIncome.toLocaleString('id-ID')}</p>
+                    <p className="text-sm font-bold text-emerald-600">{format(totalIncome)}</p>
                 </div>
              </div>
              <div className="flex items-center space-x-3 px-4 py-2 bg-rose-50/50 rounded-2xl border border-rose-100/50">
                 <div className="text-rose-500"><FiArrowDownLeft size={20}/></div>
                 <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter leading-none">Total Out</p>
-                    <p className="text-sm font-bold text-rose-600">Rp {totalExpense.toLocaleString('id-ID')}</p>
+                    <p className="text-sm font-bold text-rose-600">{format(totalExpense)}</p>
                 </div>
              </div>
           </div>

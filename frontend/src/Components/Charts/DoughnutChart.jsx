@@ -7,11 +7,13 @@ import {
 } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
 import { useBalanceStore } from "../../stores/balance.store";
+import { useCurrency } from "../../hooks/useCurrency";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function DoughnutChartComponent() {
   const transactions = useBalanceStore((state) => state.transactions);
+  const { format } = useCurrency();
   const fetchTransactions = useBalanceStore(
     (state) => state.fetchTransactions
   );
@@ -87,7 +89,7 @@ export default function DoughnutChartComponent() {
         bodyFont: { size: 13, family: "Inter, sans-serif", weight: "bold" },
         usePointStyle: true,
         callbacks: {
-          label: (context) => ` Rp. ${context.raw.toLocaleString("id-ID")}`,
+          label: (context) => ` ${format(context.raw)}`,
         },
       },
     },

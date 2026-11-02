@@ -9,6 +9,8 @@ import {
   FiLoader,
 } from "react-icons/fi";
 
+import { useCurrency } from "../hooks/useCurrency";
+
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -48,6 +50,8 @@ const Empty = () => (
 const Export = () => {
   const [format, setFormat] = useState("csv");
   const [exporting, setExporting] = useState(false);
+
+  const { code } = useCurrency();
 
   // pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,7 +136,7 @@ const Export = () => {
         item.Title,
         item.Category,
         item.Type,
-        `Rp ${Number(item.Amount).toLocaleString("id-ID")}`,
+        formatMoney(item.Amount, code, code === "TRY" ? "code" : "symbol"),
       ]),
       styles: {
         fontSize: 10,
@@ -315,7 +319,7 @@ const Export = () => {
                         : "text-rose-500"
                     }`}
                   >
-                    Rp {Number(item.amount).toLocaleString("id-ID")}
+                    {format(item.amount)}
                   </p>
                 </div>
               ))}

@@ -1,5 +1,6 @@
 import React from "react";
 import { FiTrash2, FiCalendar, FiRefreshCcw } from "react-icons/fi";
+import { useCurrency } from "../../hooks/useCurrency";
 
 const CATEGORY_LABELS = {
   subscription: "Subscription",
@@ -23,7 +24,7 @@ const formatDue = (date) => {
 
 const RecurringCard = ({ payment, onDelete }) => {
   const { id, name = "", amount = 0, frequency, nextDue, category } = payment;
-
+  const { format } = useCurrency();
   // Warna ikon berdasarkan nama (dekoratif)
   const getIconColor = () => {
     const lower = name.toLowerCase();
@@ -69,7 +70,7 @@ const RecurringCard = ({ payment, onDelete }) => {
             Amount
           </p>
           <p className="text-xl font-black text-slate-900">
-            Rp {amount.toLocaleString("id-ID")}
+            {format(amount)}
           </p>
         </div>
         <div className="text-right">

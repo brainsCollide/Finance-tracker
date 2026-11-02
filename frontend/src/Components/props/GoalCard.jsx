@@ -5,6 +5,7 @@ import {
   FiAward,
   FiEdit2,
 } from "react-icons/fi";
+import { useCurrency } from "../../hooks/useCurrency";
 
 
 const GoalCard = ({ goal, onDelete, onEdit }) => {
@@ -15,6 +16,8 @@ const GoalCard = ({ goal, onDelete, onEdit }) => {
     deadline,
     _id,
   } = goal;
+
+  const { format } = useCurrency();
 
   // Fallback untuk data null atau undefined.
   const safeCurrentAmount = Number(currentAmount ?? 0);
@@ -103,12 +106,12 @@ const GoalCard = ({ goal, onDelete, onEdit }) => {
             </p>
 
             <p className="text-lg font-black text-slate-900">
-              Rp {safeCurrentAmount.toLocaleString("id-ID")}
+              {format(safeCurrentAmount)}
             </p>
           </div>
 
           <p className="text-xs font-bold text-slate-400 pb-1">
-            of Rp {safeTargetAmount.toLocaleString("id-ID")}
+            of {format(safeTargetAmount)}
           </p>
         </div>
 

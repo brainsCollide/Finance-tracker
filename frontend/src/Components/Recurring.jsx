@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import axiosInstance from "../api/axiosInstance";
-
+import { useCurrency } from "../hooks/useCurrency";
 import {
   FiPlus,
   FiAlertCircle,
@@ -26,6 +26,7 @@ const Recurring = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { format } = useCurrency();
 
   const fetchRecurring = useCallback(async () => {
     try {
@@ -135,7 +136,7 @@ const Recurring = () => {
                 </p>
 
                 <p className="text-2xl font-black text-slate-900 mt-1">
-                  Rp {Math.round(totalMonthly).toLocaleString("id-ID")}
+                  {format(totalMonthly)}
                 </p>
 
                 <p className="text-xs text-slate-400 mt-1">

@@ -29,5 +29,12 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  updateCurrency: async (currency) => {
+    const res = await axiosInstance.put("/users/me/currency", { currency });
+    set((state) => ({
+      user: state.user ? { ...state.user, currency: res.data.currency } : state.user,
+    }));
+  },
+
   clearUser: () => set({ user: null }),
 }));

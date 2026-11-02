@@ -1,4 +1,5 @@
-
+import { useEffect } from "react";
+import { toast } from "react-toastify";
 import {
   FiLogOut,
   FiUser,
@@ -8,8 +9,27 @@ import {
   FiChevronRight,
 } from "react-icons/fi";
 import axiosInstance from "../api/axiosInstance";
+import { useAuthStore } from "../stores/auth.store";
+import { useCurrency } from "../hooks/useCurrency";
+import { CURRENCIES } from "../utils/currency";
 
 const ProfilePage = ({ user, onLogout }) => {
+  const { fetchUser, updateCurrency, clearUser } = useAuthStore();
+  const { code } = useCurrency();
+
+  useEffect(() => {
+    fetchUser().catch(() => {});
+  }, [fetchUser]);
+
+  const handleCurrencyChange = async (e) => {
+    try {
+      await updateCurrency(e.target.value);
+      toast.success("Currency updated");
+    } catch {
+      toast.error("Failed to update currency");
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await axiosInstance.post(
@@ -17,6 +37,7 @@ const ProfilePage = ({ user, onLogout }) => {
         {},
         { withCredentials: true }
       );
+      clearUser();
       onLogout();
     } catch (error) {
       console.error(
@@ -135,6 +156,30 @@ const ProfilePage = ({ user, onLogout }) => {
           </div>
 
           <div className="divide-y divide-slate-100 px-4 sm:px-6">
+            {/* Currency */}
+            <div className="flex items-center justify-between gap-4 py-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">
+                  Currency
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Changes the symbol and format only. Existing amounts are not converted.
+                </p>
+              </div>
+
+              <select
+                value={code}
+                onChange={handleCurrencyChange}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-200"
+              >
+                {Object.keys(CURRENCIES).map((c) => (
+                  <option key={c} value={c}>
+                    {c} ({CURRENCIES[c].symbol})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Account Security */}
             <button
               type="button"

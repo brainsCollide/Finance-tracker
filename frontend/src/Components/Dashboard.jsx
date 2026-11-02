@@ -16,6 +16,7 @@ import { useAuthStore } from "../stores/auth.store";
 import SavingsRateBadge from "./Badges/SavingsRateBadge";
 import PaymentRow from "../props/PaymentRow";
 import { getDaysUntil, groupPayments } from "../utils/payments";
+import { useCurrency } from "../hooks/useCurrency";
 
 import {
   FiTrendingUp,
@@ -269,8 +270,7 @@ export default function Dashboard() {
 
   const periodNoun = summaryMode === "yearly" ? "year" : "month";
 
-  const formatRupiah = (amount) =>
-    `Rp ${Number(amount || 0).toLocaleString("id-ID")}`;
+  const { format: formatRupiah } = useCurrency();
 
   if (isLoading) {
     return (

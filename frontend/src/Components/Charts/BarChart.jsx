@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import {
   Chart as ChartJS,
@@ -9,6 +8,7 @@ import {
   Legend,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import { useCurrency } from "../../hooks/useCurrency";
 
 ChartJS.register(
   CategoryScale,
@@ -25,21 +25,6 @@ const MONTHS = [
 
 const GREEN = "#10B981";
 const RED = "#F43F5E";
-
-const formatRupiah = (value) =>
-  `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
-
-const formatAxisValue = (value) => {
-  if (Math.abs(value) >= 1000000) {
-    return `Rp ${(value / 1000000).toFixed(1)}M`;
-  }
-
-  if (Math.abs(value) >= 1000) {
-    return `Rp ${(value / 1000).toFixed(0)}K`;
-  }
-
-  return `Rp ${value}`;
-};
 
 /**
  * Supports common transaction shapes:
@@ -58,7 +43,7 @@ function getTransactionType(transaction) {
     ""
   ).toLowerCase();
 
-  if (["income", "earning", " pemasukan"].includes(type.trim())) {
+  if (["income", "earning", "pemasukan"].includes(type.trim())) {
     return "income";
   }
 
@@ -94,6 +79,8 @@ export default function BarChartComponent({
   selectedMonth = new Date().getMonth(),
   selectedYear = new Date().getFullYear(),
 }) {
+  const { format: formatRupiah, formatCompact } = useCurrency();
+
   const dailyData = useMemo(() => {
     const daysInMonth = new Date(
       selectedYear,
@@ -295,11 +282,11 @@ export default function BarChartComponent({
       },
     },
     layout: {
-            padding: {
-              bottom: 8,
-              left: 4,
-              right: 4,
-            },
+      padding: {
+        bottom: 8,
+        left: 4,
+        right: 4,
+      },
     },
     scales: {
       x: {
@@ -343,11 +330,18 @@ export default function BarChartComponent({
             family: "Inter, sans-serif",
           },
           padding: 10,
-          callback: (value) => formatAxisValue(value),
+          callback: (value) => formatCompact(value),
         },
       },
     },
-  }), [mode, selectedMonth, selectedYear, dailyData]);
+  }), [
+    mode,
+    selectedMonth,
+    selectedYear,
+    dailyData,
+    formatRupiah,
+    formatCompact,
+  ]);
 
   if (mode === "monthly" && monthlyStats.length === 0) {
     return (

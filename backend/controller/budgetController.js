@@ -1,18 +1,17 @@
 const mongoose = require('mongoose');
 const Budget = require('../models/Budget');
 const Transaction = require('../models/Transaction');
+const { resolveCategory } = require('../utils/categories');
 
 const VALID_PERIODS = ['weekly', 'monthly', 'yearly'];
 
-const VALID_CATEGORIES = [
-  'work',
-  'grocery',
-  'entertainment',
-  'transport',
-  'health',
-  'education',
-  'other',
-];
+const findBudgetCategory = async (userId, category) => {
+  const found = await resolveCategory(userId, category);
+  return found && found.type !== 'income' ? found : null;
+};
+
+const CATEGORY_ERROR_MESSAGE =
+  'Kategori tidak ditemukan atau tidak bisa dipakai untuk budget';
 
 // Rentang periode kalender berdasarkan waktu server.
 // Minggu dimulai hari Minggu.
@@ -234,9 +233,9 @@ const createBudget = async (req, res) => {
       period = 'monthly',
     } = req.body;
 
-    if (!isValidCategory(category)) {
+    if (!(await findBudgetCategory(userId, category))) {
       return res.status(400).json({
-        message: `Kategori harus salah satu dari: ${VALID_CATEGORIES.join(', ')}`,
+        message: CATEGORY_ERROR_MESSAGE,
       });
     }
 
@@ -314,11 +313,13 @@ const updateBudget = async (req, res) => {
     const updates = {};
 
     if (category !== undefined) {
-      if (!isValidCategory(category)) {
+      if (!(await findBudgetCategory(userId, category))) {
         return res.status(400).json({
-          message: `Kategori harus salah satu dari: ${VALID_CATEGORIES.join(', ')}`,
+          message: CATEGORY_ERROR_MESSAGE,
         });
       }
+
+      updates.category = normalizeCategory(category);
 
       updates.category = normalizeCategory(category);
     }

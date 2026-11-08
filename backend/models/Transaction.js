@@ -20,9 +20,10 @@ const transactionSchema = new mongoose.Schema({
         required: true
     },
     category: {
-        type: String,
-        enum: ["work", "grocery", "entertainment", "transport", "health", "education", "other"], // List of predefined categories
-        required: true
+        type: String, // key dari collection Category milik user (divalidasi di controller)
+        required: true,
+        trim: true,
+        lowercase: true
     },
     date: {
         type: Date,

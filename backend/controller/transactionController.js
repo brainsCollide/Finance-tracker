@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const Joi = require('joi');
+const { resolveCategory, isTypeCompatible } = require('../utils/categories');
 
 // ✅ Define Joi validation schemas
 const createTransactionSchema = Joi.object({
@@ -22,14 +23,10 @@ const createTransactionSchema = Joi.object({
     'any.required': 'Transaction type is required'
   }),
   
-  category: Joi.string()
-    .valid('work', 'grocery', 'entertainment', 'transport', 'health', 'education', 'other')
-    .required()
-    .messages({
-      'string.empty': 'Category is required',
-      'any.only': 'Invalid category. Choose from: work, grocery, entertainment, transport, health, education, other',
-      'any.required': 'Category is required'
-    }),
+   category: Joi.string().trim().lowercase().max(40).required().messages({
+    'string.empty': 'Category is required',
+    'any.required': 'Category is required'
+  }),
   
   date: Joi.date().max('now').messages({
     'date.base': 'Invalid date format',
@@ -51,11 +48,9 @@ const updateTransactionSchema = Joi.object({
     'any.only': 'Type must be either "income" or "expense"'
   }),
   
-  category: Joi.string()
-    .valid('work', 'grocery', 'entertainment', 'transport', 'health', 'education', 'other')
-    .messages({
-      'any.only': 'Invalid category. Choose from: work, grocery, entertainment, transport, health, education, other'
-    }),
+   category: Joi.string().trim().lowercase().max(40).messages({
+    'string.empty': 'Category cannot be empty'
+  }),
   
   date: Joi.date().max('now').messages({
     'date.base': 'Invalid date format',
@@ -239,6 +234,21 @@ const addATransaction = async (req, res, next) => {
 
         const { title, amount, type, category, date } = value; // Use validated data
         const userId = req.user.userId;
+        const categoryDoc = await resolveCategory(userId, category);
+
+        if (!categoryDoc) {
+            return res.status(400).json({
+                message: "Validation failed",
+                errors: { category: "Category not found" }
+            });
+        }
+
+        if (!isTypeCompatible(categoryDoc, type)) {
+            return res.status(400).json({
+                message: "Validation failed",
+                errors: { category: `"${categoryDoc.label}" can't be used for ${type}` }
+            });
+        }
 
         // ✅ Create new transaction with validated data
         const newTransaction = new Transaction({
@@ -317,6 +327,37 @@ const updateATransaction = async (req, res) => {
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Invalid ID format' });
+        }
+
+         if (value.category !== undefined || value.type !== undefined) {
+            const current = await Transaction.findOne({ _id: id, userId: req.user.userId })
+                .select('type category')
+                .lean();
+
+            if (!current) {
+                return res.status(404).json({ message: 'Transaction not found or unauthorized' });
+            }
+
+            const nextType = value.type ?? current.type;
+            const nextCategory = value.category ?? current.category;
+
+            if (nextType !== current.type || nextCategory !== current.category) {
+                const categoryDoc = await resolveCategory(req.user.userId, nextCategory);
+
+                if (!categoryDoc) {
+                    return res.status(400).json({
+                        message: "Validation failed",
+                        errors: { category: "Category not found" }
+                    });
+                }
+
+                if (!isTypeCompatible(categoryDoc, nextType)) {
+                    return res.status(400).json({
+                        message: "Validation failed",
+                        errors: { category: `"${categoryDoc.label}" can't be used for ${nextType}` }
+                    });
+                }
+            }
         }
 
         // ✅ Use validated data for update

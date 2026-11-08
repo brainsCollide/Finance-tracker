@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 const sendEmail = require("../utils/sendEmail");
+const { ensureDefaultCategories } = require("../utils/categories");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const CLIENT_URL = process.env.CLIENT_URL;
@@ -139,6 +140,13 @@ const signUp = async (req, res) => {
       password,
     });
 
+
+    try {
+      await ensureDefaultCategories(newUser._id);
+    } catch (seedError) {
+      console.error("[SIGN_UP_SEED_CATEGORIES]", seedError.name || "Error");
+    }
+
     return res.status(201).json({
       message: "User successfully created",
       user: {
@@ -146,6 +154,8 @@ const signUp = async (req, res) => {
         username: newUser.username,
         email: newUser.email,
       },
+
+      
     });
   } catch (error) {
     if (error.code === 11000) {

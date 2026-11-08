@@ -12,6 +12,7 @@ const upcomingPaymentRoute = require("./routes/paymentRoute");
 const budgetRoute = require("./routes/budgetRoutes");
 const recurringRoute = require("./routes/recurringRoutes");
 const goalRoutes = require("./routes/goalRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");   
 
 const connectDB = require("./config/db");
 
@@ -58,6 +59,7 @@ app.use("/payments", upcomingPaymentRoute);
 app.use("/budgets", budgetRoute);
 app.use("/recurring", recurringRoute);
 app.use("/goals", goalRoutes);
+app.use("/categories", categoryRoutes); 
 
 // 404 handler
 app.use((req, res) => {

@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema(
       default: 'IDR',
     },
 
+    categoriesSeeded: {
+      type: Boolean,
+      default: false,
+    },
+
     resetPasswordToken: {
       type: String,
       select: false,

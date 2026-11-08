@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";  
 import { useBalanceStore } from "../../stores/balance.store";
 import { toast } from "react-toastify";
 import { FiTag, FiCalendar, FiActivity, FiFilter } from "react-icons/fi";
 import CurrencyIcon from "./CurrencyIcon";
+import { useCategoryStore } from "../../stores/category.store";
+import CategorySelect from "./CategorySelect";
 
 // --- FormInput DI LUAR (Agar kursor tidak hilang saat ngetik) ---
 const FormInput = ({ label, icon: Icon, error, transactionType, ...props }) => (
@@ -29,7 +31,7 @@ const AddTransaction = ({ closeModal }) => {
     amount: "",
     date: new Date().toISOString().split("T")[0],
     type: "income",
-    category: "work",
+    category: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -37,6 +39,22 @@ const AddTransaction = ({ closeModal }) => {
 
   // Ambil Action dari Store
   const { addTransaction } = useBalanceStore();
+  
+    const categories = useCategoryStore((s) => s.categories);
+
+  // Pastikan kategori yang dipilih selalu cocok dengan tipe transaksi.
+  // Jalan saat kategori selesai di-load dan saat Type diganti.
+  useEffect(() => {
+    const allowed = categories.filter(
+      (c) => c.type === "both" || c.type === transaction.type
+    );
+
+    if (allowed.length === 0) return;
+
+    if (!allowed.some((c) => c.key === transaction.category)) {
+      setTransaction((prev) => ({ ...prev, category: allowed[0].key }));
+    }
+  }, [categories, transaction.type, transaction.category]);
 
   const handleChanges = (e) => {
     const { name, value } = e.target;
@@ -127,25 +145,19 @@ const AddTransaction = ({ closeModal }) => {
 
           <div className="space-y-1.5 flex-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Category</label>
-            <div className="relative group">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500">
-                <FiFilter size={18} />
-              </div>
-              <select
-                name="category"
-                value={transaction.category}
-                onChange={handleChanges}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
-              >
-                <option value="work">Work</option>
-                <option value="grocery">Grocery</option>
-                <option value="entertainment">Entertainment</option>
-                <option value="transport">Transport</option>
-                <option value="health">Health</option>
-                <option value="education">Education</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
+            <CategorySelect
+              value={transaction.category}
+              type={transaction.type}
+              leftIcon={FiFilter}
+              onChange={(key) => {
+                if (errors.category) setErrors({ ...errors, category: null });
+                setTransaction((prev) => ({ ...prev, category: key }));
+              }}
+              selectClassName="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
+            />
+            {errors.category && (
+              <p className="text-[10px] text-rose-500 font-medium ml-1">{errors.category}</p>
+            )}
           </div>
         </div>
 

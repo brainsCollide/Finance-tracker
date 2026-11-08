@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axiosInstance from "../../api/axiosInstance";
+import CategorySelect from "./CategorySelect";
 
 const AddBudgetModal = ({ isOpen, onClose, onSaved, budget }) => {
   const [formData, setFormData] = useState({
@@ -108,35 +109,16 @@ const AddBudgetModal = ({ isOpen, onClose, onSaved, budget }) => {
             Category
           </label>
 
-          <select
-            name="category"
+          <CategorySelect
             value={formData.category}
-            onChange={handleInputChange}
-            required
-            className="
-              w-full px-4 py-3
-              bg-slate-50
-              border border-slate-200
-              rounded-2xl
-              text-slate-900
-
-              focus:outline-none
-              focus:ring-4
-              focus:ring-blue-500/10
-              focus:border-blue-500
-
-              transition-all
-            "
-          >
-            <option value="">Select category</option>
-            <option value="work">Work</option>
-            <option value="grocery">Grocery</option>
-            <option value="entertainment">Entertainment</option>
-            <option value="transport">Transport</option>
-            <option value="health">Health</option>
-            <option value="education">Education</option>
-            <option value="other">Other</option>
-          </select>
+            type="expense"
+            placeholder="Select category"
+            onChange={(key) => {
+              setFormData((prev) => ({ ...prev, category: key }));
+              setFormError("");
+            }}
+            selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+          />
         </div>
 
         {/* LIMIT */}

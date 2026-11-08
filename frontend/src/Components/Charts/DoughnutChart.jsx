@@ -8,6 +8,7 @@ import {
 import { Doughnut } from "react-chartjs-2";
 import { useBalanceStore } from "../../stores/balance.store";
 import { useCurrency } from "../../hooks/useCurrency";
+import { useCategoryMeta } from "../../hooks/useCategoryMeta";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -17,6 +18,8 @@ export default function DoughnutChartComponent() {
   const fetchTransactions = useBalanceStore(
     (state) => state.fetchTransactions
   );
+
+  const { getMeta } = useCategoryMeta();
 
   // Fetch transactions on mount
   useEffect(() => {
@@ -43,25 +46,18 @@ export default function DoughnutChartComponent() {
     return acc;
   }, {});
 
+  const keys = Object.keys(categoryMap);
+  const metas = keys.map((key) => getMeta(key));
+
   const data = {
-    labels: Object.keys(categoryMap),
+    labels: metas.map((m) => m.label),
     datasets: [
       {
-        data: Object.values(categoryMap),
-        // Modern solid Tailwind hex colors (Blue, Emerald, Amber, Violet, Pink, Teal, Rose, Slate)
-        backgroundColor: [
-          "#3B82F6", 
-          "#10B981", 
-          "#F59E0B", 
-          "#8B5CF6", 
-          "#EC4899", 
-          "#14B8A6", 
-          "#F43F5E", 
-          "#64748B", 
-        ],
-        borderWidth: 0, // Removes the harsh white borders
-        hoverOffset: 6, // Makes the hovered segment pop out slightly
-        spacing: 2, // Adds a highly modern tiny gap between segments
+        data: keys.map((key) => categoryMap[key]),
+        backgroundColor: metas.map((m) => m.color),
+        borderWidth: 0,
+        hoverOffset: 6,
+        spacing: 2,
       },
     ],
   };

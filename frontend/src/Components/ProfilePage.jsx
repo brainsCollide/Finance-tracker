@@ -12,6 +12,8 @@ import axiosInstance from "../api/axiosInstance";
 import { useAuthStore } from "../stores/auth.store";
 import { useCurrency } from "../hooks/useCurrency";
 import { CURRENCIES } from "../utils/currency";
+import CategoryManager from "./CategoryManager";
+import { useCategoryStore } from "../stores/category.store";
 
 const ProfilePage = ({ user, onLogout }) => {
   const { fetchUser, updateCurrency, clearUser } = useAuthStore();
@@ -38,6 +40,7 @@ const ProfilePage = ({ user, onLogout }) => {
         { withCredentials: true }
       );
       clearUser();
+      useCategoryStore.getState().reset();
       onLogout();
     } catch (error) {
       console.error(
@@ -143,6 +146,8 @@ const ProfilePage = ({ user, onLogout }) => {
             </div>
           </div>
         </section>
+
+        <CategoryManager />
 
         {/* Account Settings */}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

@@ -32,6 +32,8 @@ import { useBalanceStore } from "../stores/balance.store";
 import { usePaymentStore } from "../stores/payment.store";
 import { useBudgetStore } from "../stores/budget.store";
 import { toast, ToastContainer } from "react-toastify";
+import { useCategoryMeta } from "../hooks/useCategoryMeta";
+
 
 const UNDO_MS = 5000;
 
@@ -40,6 +42,7 @@ export default function Dashboard() {
 
   const [modalType, setModalType] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { getMeta } = useCategoryMeta();
 
   const [chartMode, setChartMode] = useState("monthly");
   const [summaryMode, setSummaryMode] = useState("monthly");
@@ -795,8 +798,8 @@ export default function Dashboard() {
                   return (
                     <div key={budget._id} className="space-y-2">
                       <div className="flex items-end justify-between gap-3">
-                        <span className="text-sm font-medium capitalize text-slate-700">
-                          {budget.category}
+                         <span className="text-sm font-medium text-slate-700">
+                          {getMeta(budget.category).label}
                         </span>
 
                         <span

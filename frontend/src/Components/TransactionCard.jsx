@@ -1,4 +1,3 @@
-import React from "react";
 import { 
   FiArrowUpRight, 
   FiArrowDownLeft, 
@@ -7,11 +6,14 @@ import {
   FiTag 
 } from "react-icons/fi";
 import { useCurrency } from "../hooks/useCurrency";
+import { useCategoryMeta } from "../hooks/useCategoryMeta";
 
 
 const TransactionCard = ({ transaction, onDelete }) => {
   const { title, type, category, date, amount, _id } = transaction;
   const { format } = useCurrency();
+  const { getMeta } = useCategoryMeta();
+  const categoryMeta = getMeta(category);
 
   const isIncome = type === "income";
 
@@ -56,8 +58,12 @@ const TransactionCard = ({ transaction, onDelete }) => {
           {title}
         </h3>
         <div className="flex items-center text-slate-400 text-xs mt-1.5 font-medium">
-          <FiTag className="mr-1.5" size={12} />
-          <span className="capitalize">{category}</span>
+          <categoryMeta.icon
+            className="mr-1.5"
+            size={12}
+            style={{ color: categoryMeta.color }}
+          />
+          <span>{categoryMeta.label}</span>
           <span className="mx-2 text-slate-200">•</span>
           <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${theme.bg} ${theme.text}`}>
             {theme.label}

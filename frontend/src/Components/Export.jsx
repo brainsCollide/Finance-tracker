@@ -9,6 +9,7 @@ import {
   FiLoader,
 } from "react-icons/fi";
 
+import { useCategoryMeta } from "../hooks/useCategoryMeta";
 import { useCurrency } from "../hooks/useCurrency";
 
 import * as XLSX from "xlsx";
@@ -51,7 +52,8 @@ const Export = () => {
   const [format, setFormat] = useState("csv");
   const [exporting, setExporting] = useState(false);
 
-  const { code } = useCurrency();
+  const { code, format: formatAmount } = useCurrency();
+  const { getMeta } = useCategoryMeta();
 
   // pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,7 +85,7 @@ const Export = () => {
   const formattedTransactions = transactions.map((item) => ({
     Date: item.date ? new Date(item.date).toLocaleDateString("id-ID") : "-",
     Title: item.title || item.description || "-",
-    Category: item.category || "-",
+    Category: item.category ? getMeta(item.category).label : "-",
     Type: item.type || "-",
     Amount: item.amount || 0,
   }));
@@ -136,7 +138,7 @@ const Export = () => {
         item.Title,
         item.Category,
         item.Type,
-        formatMoney(item.Amount, code, code === "TRY" ? "code" : "symbol"),
+        formatAmount(item.Amount),
       ]),
       styles: {
         fontSize: 10,
@@ -308,7 +310,7 @@ const Export = () => {
                       {item.title || item.description}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {item.category || "Uncategorized"}
+                       {item.category ? getMeta(item.category).label : "Uncategorized"}
                     </p>
                   </div>
 
@@ -319,7 +321,7 @@ const Export = () => {
                         : "text-rose-500"
                     }`}
                   >
-                    {format(item.amount)}
+                    {formatAmount(item.amount)}
                   </p>
                 </div>
               ))}

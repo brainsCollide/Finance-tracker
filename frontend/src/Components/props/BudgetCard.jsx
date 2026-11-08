@@ -1,36 +1,21 @@
 import React from "react";
-import { 
-  FiShoppingBag, FiCoffee, FiTruck, FiFilm, 
-  FiZap, FiDollarSign, FiTrash2, FiEdit3 
-} from "react-icons/fi";
-
+import { FiTrash2, FiEdit3 } from "react-icons/fi";
 import { useCurrency } from "../../hooks/useCurrency";
+import { useCategoryMeta } from "../../hooks/useCategoryMeta";
 
-const categoryIcons = {
-  work: FiDollarSign,
-  grocery: FiCoffee,
-  entertainment: FiFilm,
-  transport: FiTruck,
-  health: FiZap,
-  education: FiZap,
-  other: FiDollarSign,
-  Shopping: FiShoppingBag,
-  Food: FiCoffee,
-  Transportation: FiTruck,
-  Utilities: FiZap,
-};
 
 const BudgetCard = ({ budget, onDelete, onEdit }) => {
   const { _id, category, spent = 0, limit = 0, percentage = 0 } = budget || {};
   const { format } = useCurrency();
+  const { getMeta } = useCategoryMeta();
 
   // Guard semua field
   const safeCategory = category || "Other";
+  const meta = getMeta(category || "other");
+  const Icon = meta.icon;
   const safeSpent = Number(spent) || 0;
   const safeLimit = Number(limit) || 0;
   const safePercentage = Number(percentage) || 0;
-
-  const Icon = categoryIcons[safeCategory.toLowerCase()] || FiDollarSign;
   const isOverBudget = safePercentage >= 100;
 
   const getStatusStyles = () => {
@@ -73,8 +58,8 @@ const BudgetCard = ({ budget, onDelete, onEdit }) => {
       </div>
 
       <div>
-        <h3 className="font-bold text-lg text-gray-900 capitalize">
-          {safeCategory}
+        <h3 className="font-bold text-lg text-gray-900">
+          {meta.label}
         </h3>
         <div className="flex items-center gap-2 mt-1">
           <div className={`w-2 h-2 rounded-full ${status.bar}`}></div>

@@ -19,4 +19,4 @@ router.get('/:id/usage', getCategoryUsage);
 
 router.route('/:id').put(updateCategory).delete(deleteCategory);
 
-module.exports = router;t
+module.exports = router;
